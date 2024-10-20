@@ -1,0 +1,4 @@
+requests
+black
+flake8
+isort
