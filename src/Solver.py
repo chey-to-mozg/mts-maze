@@ -1,6 +1,6 @@
-from src.Mouse import Mouse
-from src.Maze import Maze
 from src import constants
+from src.Maze import Maze
+from src.Mouse import Mouse
 
 
 class Solver:
@@ -30,7 +30,9 @@ class Solver:
             self.maze.update_direction(constants.Directions.right)
         elif (current_direction + 2) % 4 == direction:
             self.mouse.pos -= constants.CELL
-            self.mouse.wait_until_position(constants.HALF_CELL - constants.SENSING_OFFSET, stop_threshold=constants.CENTER_REFERENCE)
+            self.mouse.wait_until_position(
+                constants.HALF_CELL - constants.SENSING_OFFSET, stop_threshold=constants.CENTER_REFERENCE
+            )
             self.mouse.stop()
             self.mouse.around()
             self.maze.update_direction(constants.Directions.down)
@@ -71,12 +73,12 @@ class Solver:
                         print(f'Path: {self.maze.path}')
 
                     if next_path == 'F':
-                        if self.maze.check_wall(self.maze.mouse_position,constants.Directions.up):
+                        if self.maze.check_wall(self.maze.mouse_position, constants.Directions.up):
                             recalculate = True
                         else:
                             self._move_by_direction(direction=self.maze.mouse_direction)
                     elif next_path == 'R':
-                        if self.maze.check_wall(self.maze.mouse_position,constants.Directions.right):
+                        if self.maze.check_wall(self.maze.mouse_position, constants.Directions.right):
                             recalculate = True
                         else:
                             self._move_by_direction(direction=self.maze.mouse_direction + constants.Directions.right)
