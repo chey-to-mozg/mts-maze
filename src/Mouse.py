@@ -1,15 +1,23 @@
 import math
 import time
+from enum import Enum
 
 import requests
 
 from src import constants
 
+class Sensors(Enum):
+    up: '4'
+    left: '2'
+    right: '5'
+    down: '1'
+    left_45: '6'
+    right_45: '3'
 
 class Mouse:
     def __init__(self):
         super().__init__()
-        self._api_route = "http://127.0.0.1:8801/api/v1"
+        self._api_route = "http://192.168.68.167"
         self.left_wall_distance = 0
         self.front_wall_distance = 0
         self.right_wall_distance = 0
@@ -29,27 +37,32 @@ class Mouse:
         self.rot_error = 0
         self._steering_enabled = True
 
-        self.update_sensor_data(init_update=True)
+        # self.update_sensor_data(init_update=True)
         self.reference_angle = self.angle
         self.prev_angle = self.angle
 
     # api control
-    def _make_action(self, action: str):
+    def _make_action(self, action: str, distance: int):
         """
         basic movement control
         :param action: string from corresponding api call (forward | left | right)
         """
-        requests.post(f"{self._api_route}/robot-cells/{action}")
+        requests.put(f"{self._api_route}/move", json={'direction': action, 'id':'854CAF96103A6853', 'len': distance})
         time.sleep(0.1)
 
-    def forward(self):
-        self._make_action("forward")
+    def forward(self, distance: int = 168):
+        # 168 1 ячейка
+        self._make_action("forward", distance)
 
-    def right(self):
-        self._make_action("right")
+    def right(self, angle: int = 95):
+        # 95 на поворот
+        self._make_action("right", angle)
 
-    def left(self):
-        self._make_action("left")
+    def left(self, angle: int = 95):
+        self._make_action("left", angle)
+
+    def backward(self, distance: int = 100):
+        self._make_action("backward", distance)
 
     # manual control # move to separate class?
 
@@ -150,7 +163,7 @@ class Mouse:
         get sensor data. contains different values from all sensors
         :return: dict with sensors data
         """
-        return requests.get(f"{self._api_route}/robot-cells/sensor-data").json()
+        return requests.post(f"{self._api_route}/sensor", json={'id': '854CAF96103A6853', 'type': 'all'}).json()
 
     def _calc_errors(self):
         """
@@ -196,39 +209,43 @@ class Mouse:
         read sensor data and update wall related data
         """
         sensor_data = self.get_sensors()
-        self.front_wall_distance = sensor_data["front_distance"]
-        if not init_update:
-            self.left_wall_distance = sensor_data["left_45_distance"]
-            self.right_wall_distance = sensor_data["right_45_distance"]
-        else:
-            self.left_wall_distance = sensor_data["left_side_distance"]
-            self.right_wall_distance = sensor_data["right_side_distance"]
+        lasers = sensor_data["laser"]
+        self.front_wall_distance = lasers['4']
+        # if not init_update:
+        #     self.left_wall_distance = lasers[Sensors]
+        #     self.right_wall_distance = sensor_data["right_45_distance"]
+        # else:
+        #     self.left_wall_distance = sensor_data["left_side_distance"]
+        #     self.right_wall_distance = sensor_data["right_side_distance"]
+        self.left_wall_distance = lasers['2']
+        self.right_wall_distance = lasers['5']
         self.left_wall = self.left_wall_distance < constants.WALL_THRESHOLD
         self.front_wall = self.front_wall_distance < constants.FRONT_WALL_THRESHOLD
         self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
 
-        angle = sensor_data["rotation_yaw"]
-        if init_update:
-            self.reference_angle = angle
-            self.prev_angle = angle
-            self.angle = angle
-        else:
-            if angle < -90:
-                if self.prev_angle > 90:
-                    self.prev_angle -= 360
-            if angle > 90:
-                if self.prev_angle < -90:
-                    self.prev_angle += 360
-            diff = angle - self.prev_angle
-            self.angle += diff
-            self.prev_angle = angle
-
-        self.offset_x = sensor_data["down_x_offset"]
-        self.offset_y = sensor_data["down_y_offset"]
-
-        self._update_movement()
-
-        self._calc_errors()
+        # angle = sensor_data["rotation_yaw"]
+        # if init_update:
+        #     self.reference_angle = angle
+        #     self.prev_angle = angle
+        #     self.angle = angle
+        # else:
+        #     if angle < -90:
+        #         if self.prev_angle > 90:
+        #             self.prev_angle -= 360
+        #     if angle > 90:
+        #         if self.prev_angle < -90:
+        #             self.prev_angle += 360
+        #     diff = angle - self.prev_angle
+        #     self.angle += diff
+        #     self.prev_angle = angle
+        #
+        # self.offset_x = sensor_data["down_x_offset"]
+        # self.offset_y = sensor_data["down_y_offset"]
+        #
+        # self._update_movement()
+        #
+        # self._calc_errors()
+        print(self)
 
     def __str__(self):
         return (
