@@ -6,13 +6,15 @@ import requests
 
 from src import constants
 
-class Sensors(Enum):
-    up: '4'
-    left: '2'
-    right: '5'
-    down: '1'
-    left_45: '6'
-    right_45: '3'
+
+class Sensors(str, Enum):
+    left = '2'
+    left_45 = '6'
+    up = '4'
+    right = '5'
+    right_45 = '3'
+    down = '1'
+
 
 class Mouse:
     def __init__(self):
@@ -37,7 +39,7 @@ class Mouse:
         self.rot_error = 0
         self._steering_enabled = True
 
-        # self.update_sensor_data(init_update=True)
+        self.update_sensor_data(init_update=True)
         self.reference_angle = self.angle
         self.prev_angle = self.angle
 
@@ -46,16 +48,16 @@ class Mouse:
         """
         basic movement control
         :param action: string from corresponding api call (forward | left | right)
+        :param distance: distancve for forward and angle for left\right
         """
-        requests.put(f"{self._api_route}/move", json={'direction': action, 'id':'854CAF96103A6853', 'len': distance})
+        body = {'direction': action, 'id': constants.MOUSE_ID, 'len': distance}
+        requests.put(f"{self._api_route}/move", json=body)
         time.sleep(0.1)
 
     def forward(self, distance: int = 168):
-        # 168 1 ячейка
         self._make_action("forward", distance)
 
     def right(self, angle: int = 95):
-        # 95 на поворот
         self._make_action("right", angle)
 
     def left(self, angle: int = 95):
@@ -163,7 +165,17 @@ class Mouse:
         get sensor data. contains different values from all sensors
         :return: dict with sensors data
         """
-        return requests.post(f"{self._api_route}/sensor", json={'id': '854CAF96103A6853', 'type': 'all'}).json()
+        # data example:
+        # return {
+        #     'laser': {
+        #         '1': 239, '2': 59, '3': 82, '4': 225, '5': 70, '6': 93
+        #     },
+        #     'imu': {
+        #         'roll': -1, 'pitch': 0, 'yaw': 121
+        #     }
+        # }
+        body = {'id': constants.MOUSE_ID, 'type': 'all'}
+        return requests.post(f"{self._api_route}/sensor", json=body).json()
 
     def _calc_errors(self):
         """
@@ -210,15 +222,15 @@ class Mouse:
         """
         sensor_data = self.get_sensors()
         lasers = sensor_data["laser"]
-        self.front_wall_distance = lasers['4']
+        self.front_wall_distance = lasers[Sensors.up]
         # if not init_update:
         #     self.left_wall_distance = lasers[Sensors]
         #     self.right_wall_distance = sensor_data["right_45_distance"]
         # else:
         #     self.left_wall_distance = sensor_data["left_side_distance"]
         #     self.right_wall_distance = sensor_data["right_side_distance"]
-        self.left_wall_distance = lasers['2']
-        self.right_wall_distance = lasers['5']
+        self.left_wall_distance = lasers[Sensors.left]
+        self.right_wall_distance = lasers[Sensors.right]
         self.left_wall = self.left_wall_distance < constants.WALL_THRESHOLD
         self.front_wall = self.front_wall_distance < constants.FRONT_WALL_THRESHOLD
         self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
@@ -261,4 +273,5 @@ class Mouse:
 if __name__ == "__main__":
     mouse = Mouse()
     while True:
-        print(mouse.get_sensors())
+        mouse.update_sensor_data()
+        time.sleep(0.1)

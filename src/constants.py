@@ -8,6 +8,7 @@ class Directions(IntEnum):
     left = 3
 
 
+MOUSE_ID = ""
 DEBUG_LOGGING = False
 
 # Mouse related
@@ -24,7 +25,7 @@ PRE_TURN_SPEED = 100
 LEFT_REFERENCE = 59
 RIGHT_REFERENCE = 49
 
-WALL_THRESHOLD = 130 # wall sensor data in center {'1': 239, '2': 59, '3': 82, '4': 225, '5': 70, '6': 93},
+WALL_THRESHOLD = 130  # wall sensor data in center {'1': 239, '2': 59, '3': 82, '4': 225, '5': 70, '6': 93},
 FRONT_WALL_THRESHOLD = 180
 PRE_TURN_THRESHOLD = 110
 CENTER_REFERENCE = 80
