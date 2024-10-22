@@ -15,6 +15,31 @@ class Solver:
         self.mouse.update_sensor_data()
         self.maze.set_walls(self.mouse.left_wall, self.mouse.front_wall, self.mouse.right_wall)
 
+    # def _move_by_direction(self, direction: constants.Directions):
+    #     """
+    #     move mouse 1 cell by chosen direction relative to maze
+    #     :param direction: direction to move
+    #     """
+    #     direction = direction % 4
+    #     current_direction = self.maze.mouse_direction
+    #     if current_direction == direction:
+    #         self.mouse.pos -= constants.CELL
+    #         self.mouse.wait_until_position(constants.CELL - constants.SENSING_OFFSET)
+    #     elif (current_direction + 1) % 4 == direction:
+    #         self.mouse.right()
+    #         self.maze.update_direction(constants.Directions.right)
+    #     elif (current_direction + 2) % 4 == direction:
+    #         self.mouse.pos -= constants.CELL
+    #         self.mouse.wait_until_position(
+    #             constants.HALF_CELL - constants.SENSING_OFFSET, stop_threshold=constants.CENTER_REFERENCE
+    #         )
+    #         self.mouse.stop()
+    #         self.mouse.around()
+    #         self.maze.update_direction(constants.Directions.down)
+    #     elif (current_direction + 3) % 4 == direction:
+    #         self.mouse.left()
+    #         self.maze.update_direction(constants.Directions.left)
+    #     self.maze.update_position()
     def _move_by_direction(self, direction: constants.Directions):
         """
         move mouse 1 cell by chosen direction relative to maze
@@ -23,18 +48,12 @@ class Solver:
         direction = direction % 4
         current_direction = self.maze.mouse_direction
         if current_direction == direction:
-            self.mouse.pos -= constants.CELL
-            self.mouse.wait_until_position(constants.CELL - constants.SENSING_OFFSET)
+            self.mouse.forward()
         elif (current_direction + 1) % 4 == direction:
             self.mouse.right()
             self.maze.update_direction(constants.Directions.right)
         elif (current_direction + 2) % 4 == direction:
-            self.mouse.pos -= constants.CELL
-            self.mouse.wait_until_position(
-                constants.HALF_CELL - constants.SENSING_OFFSET, stop_threshold=constants.CENTER_REFERENCE
-            )
-            self.mouse.stop()
-            self.mouse.around()
+            self.mouse.right()
             self.maze.update_direction(constants.Directions.down)
         elif (current_direction + 3) % 4 == direction:
             self.mouse.left()
