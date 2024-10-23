@@ -77,13 +77,7 @@ class Mouse:
         """
         pwm_left = int(pwm_left)
         pwm_right = int(pwm_right)
-        body = {
-            'id': constants.MOUSE_ID,
-            'l': pwm_left,
-            'r': pwm_right,
-            'l_time': m_time,
-            'r_time': m_time
-        }
+        body = {'id': constants.MOUSE_ID, 'l': pwm_left, 'r': pwm_right, 'l_time': m_time, 'r_time': m_time}
         requests.post(f"{self._api_route}/motor", json=body)
         # TODO check request duration and calculate actual delay
         # time.sleep(m_time)
