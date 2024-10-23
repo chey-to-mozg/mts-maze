@@ -42,22 +42,20 @@ class Solver:
     #     self.maze.update_position()
     def _move_by_direction(self, direction: constants.Directions):
         """
-        move mouse 1 cell by chosen direction relative to maze
+        move mouse 1 cell by chosen direction relative to mouse
         :param direction: direction to move
         """
-        direction = direction % 4
-        current_direction = self.maze.mouse_direction
-        if current_direction == direction:
-            self.mouse.forward()
-        elif (current_direction + 1) % 4 == direction:
+        if direction == constants.Directions.up:
+            pass
+        elif direction == constants.Directions.right:
             self.mouse.right()
-            self.maze.update_direction(constants.Directions.right)
-        elif (current_direction + 2) % 4 == direction:
+        elif direction == constants.Directions.down:
             self.mouse.right()
-            self.maze.update_direction(constants.Directions.down)
-        elif (current_direction + 3) % 4 == direction:
+            self.mouse.right()
+        elif direction == constants.Directions.left:
             self.mouse.left()
-            self.maze.update_direction(constants.Directions.left)
+        self.mouse.forward()
+        self.maze.update_direction(direction)
         self.maze.update_position()
 
     def shortest(self):
@@ -66,12 +64,12 @@ class Solver:
         weight map to find new path
         :return:
         """
-        self.mouse.pos = constants.CELL + constants.HALF_CELL
+        # self.mouse.pos = constants.CELL + constants.HALF_CELL
         self.maze.set_walls(self.mouse.left_wall, self.mouse.front_wall, self.mouse.right_wall)
         self.maze.floodfill()
-        if self.maze.check_wall(self.maze.mouse_position, constants.Directions.up):
-            self.mouse.right_in_place()
-            self.maze.update_direction(constants.Directions.right)
+        # if self.maze.check_wall(self.maze.mouse_position, constants.Directions.up):
+        #     self.mouse.right_in_place()
+        #     self.maze.update_direction(constants.Directions.right)
 
         path_exists = self.maze.find_path(self.maze.mouse_position)
         self.maze.print_maze()
@@ -95,21 +93,21 @@ class Solver:
                         if self.maze.check_wall(self.maze.mouse_position, constants.Directions.up):
                             recalculate = True
                         else:
-                            self._move_by_direction(direction=self.maze.mouse_direction)
+                            self._move_by_direction(direction=constants.Directions.up)
                     elif next_path == 'R':
                         if self.maze.check_wall(self.maze.mouse_position, constants.Directions.right):
                             recalculate = True
                         else:
-                            self._move_by_direction(direction=self.maze.mouse_direction + constants.Directions.right)
+                            self._move_by_direction(direction=constants.Directions.right)
                             self.maze.get_next_move()  # pop F after turn
                     elif next_path == 'A':
-                        self._move_by_direction(direction=self.maze.mouse_direction + constants.Directions.down)
+                        self._move_by_direction(direction=constants.Directions.down)
                         self.maze.get_next_move()  # pop F after turn
                     elif next_path == 'L':
                         if self.maze.check_wall(self.maze.mouse_position, constants.Directions.left):
                             recalculate = True
                         else:
-                            self._move_by_direction(direction=self.maze.mouse_direction + constants.Directions.left)
+                            self._move_by_direction(direction=constants.Directions.left)
                             self.maze.get_next_move()  # pop F after turn
 
                     if recalculate:
@@ -137,4 +135,10 @@ class Solver:
 
 if __name__ == '__main__':
     solver = Solver()
+    solver.shortest()
+    input('Move robot to the start')
+    solver.reset_position()
+    solver.shortest()
+    input('Move robot to the start')
+    solver.reset_position()
     solver.shortest()

@@ -8,7 +8,7 @@ class Directions(IntEnum):
     left = 3
 
 
-MOUSE_ID = ""
+MOUSE_ID = "854CAF96103A6853"
 DEBUG_LOGGING = False
 
 # Mouse related
@@ -30,9 +30,14 @@ FRONT_WALL_THRESHOLD = 180
 PRE_TURN_THRESHOLD = 110
 CENTER_REFERENCE = 80
 
+TURN_90 = 95
+TURN_45 = 45
+
 # Maze related
-CELL = 160
+CELL = 168
 HALF_CELL = CELL / 2
+DIAG_CELL = 118
+TO_CENTER = HALF_CELL - 35
 
 # all wall related information is stored in one uint8_t array, first 4 bits to mark walls visited (1 bit for 1 wall)
 # last 4 bits for actual wall data (1 bit for 1 wall)
