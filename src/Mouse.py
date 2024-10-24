@@ -17,9 +17,12 @@ class Sensors(str, Enum):
 
 
 class Mouse:
-    def __init__(self):
+    def __init__(self, sim: bool = False):
         super().__init__()
-        self._api_route = "http://192.168.68.167"
+        self._token = ""
+        self._api_route = "http://127.0.0.1:8801/api/v1" if sim else constants.MOUSE_IP
+        self._sim = sim
+
         self.left_wall_distance = 0
         self.front_wall_distance = 0
         self.right_wall_distance = 0
@@ -28,10 +31,7 @@ class Mouse:
         self.right_wall = False
 
         self.angle = 0
-        self.prev_angle = 0
         self.reference_angle = 0
-        self.offset_x = 0
-        self.offset_y = 0
         self.pos = 0
         self.speed = 0
         self.max_speed = constants.MAX_SPEED
@@ -41,7 +41,6 @@ class Mouse:
 
         self.update_sensor_data(init_update=True)
         self.reference_angle = self.angle
-        self.prev_angle = self.angle
 
     # api control
     def _make_action(self, action: str, distance: int):
@@ -50,21 +49,41 @@ class Mouse:
         :param action: string from corresponding api call (forward | left | right)
         :param distance: distancve for forward and angle for left\right
         """
-        body = {'direction': action, 'id': constants.MOUSE_ID, 'len': distance}
-        requests.put(f"{self._api_route}/move", json=body)
-        time.sleep(0.1)
+        if self._sim:
+            requests.post(f'{self._api_route}/robot-cells/{action}?token={self._token}')
+            time.sleep(0.1)
+        else:
+            body = {'direction': action, 'id': constants.MOUSE_ID, 'len': distance}
+            requests.put(f"{self._api_route}/move", json=body)
+            time.sleep(1)
 
     def forward(self, distance: int = constants.CELL):
         self._make_action("forward", distance)
 
     def right(self, angle: int = constants.TURN_90):
-        self._make_action("right", angle)
+        # find new angle
+        self.reference_angle = self.reference_angle + angle
+        # find diff
+        diff = abs(self.reference_angle - self.angle) + constants.ANGLE_OFFSET
+        # norm angle
+        self.reference_angle = self.reference_angle % 360
+        self._make_action("right", diff)
 
     def left(self, angle: int = constants.TURN_90):
-        self._make_action("left", angle)
+        # find new angle
+        self.reference_angle = self.reference_angle - angle
+        # find diff
+        diff = abs(self.reference_angle - self.angle) + constants.ANGLE_OFFSET
+        # norm angle
+        self.reference_angle = (self.reference_angle + 360) % 360
+        self._make_action("left", diff)
 
     def backward(self, distance: int = 100):
         self._make_action("backward", distance)
+
+    def around(self):
+        self.left()
+        self.left()
 
     # manual control # move to separate class?
 
@@ -153,14 +172,14 @@ class Mouse:
 
         self._steering_enabled = True
 
-    def around(self):
+    def around_in_place(self):
         """
         turn around using 2 in place turns
         """
         self.left_in_place()
         self.left_in_place()
 
-    def get_sensors(self):
+    def get_sensors(self) -> dict:
         """
         get sensor data. contains different values from all sensors
         :return: dict with sensors data
@@ -174,8 +193,11 @@ class Mouse:
         #         'roll': -1, 'pitch': 0, 'yaw': 121
         #     }
         # }
-        body = {'id': constants.MOUSE_ID, 'type': 'all'}
-        return requests.post(f"{self._api_route}/sensor", json=body).json()
+        if self._sim:
+            return requests.get(f'{self._api_route}/robot-cells/sensor-data?token={self._token}').json()
+        else:
+            body = {'id': constants.MOUSE_ID, 'type': 'all'}
+            return requests.post(f"{self._api_route}/sensor", json=body).json()
 
     def _calc_errors(self):
         """
@@ -221,40 +243,29 @@ class Mouse:
         read sensor data and update wall related data
         """
         sensor_data = self.get_sensors()
-        lasers = sensor_data["laser"]
-        self.front_wall_distance = lasers[Sensors.up]
-        # if not init_update:
-        #     self.left_wall_distance = lasers[Sensors]
-        #     self.right_wall_distance = sensor_data["right_45_distance"]
-        # else:
-        #     self.left_wall_distance = sensor_data["left_side_distance"]
-        #     self.right_wall_distance = sensor_data["right_side_distance"]
-        self.left_wall_distance = lasers[Sensors.left]
-        self.right_wall_distance = lasers[Sensors.right]
-        self.left_wall = self.left_wall_distance < constants.WALL_THRESHOLD
-        self.front_wall = self.front_wall_distance < constants.FRONT_WALL_THRESHOLD
-        self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
+        if self._sim:
+            self.left_wall_distance = sensor_data['left_side_distance']
+            self.front_wall_distance = sensor_data['front_distance']
+            self.right_wall_distance = sensor_data['right_side_distance']
+            self.left_wall = self.left_wall_distance < constants.WALL_THRESHOLD
+            self.front_wall = self.front_wall_distance < constants.FRONT_WALL_THRESHOLD
+            self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
+            self.angle = sensor_data['rotation_yaw']
+            if self.angle < 0:
+                self.angle += 360
+        else:
+            lasers = sensor_data["laser"]
+            self.front_wall_distance = lasers[Sensors.up]
+            self.left_wall_distance = lasers[Sensors.left]
+            self.right_wall_distance = lasers[Sensors.right]
+            self.left_wall = self.left_wall_distance < constants.WALL_THRESHOLD
+            self.front_wall = self.front_wall_distance < constants.FRONT_WALL_THRESHOLD
+            self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
 
-        imu = sensor_data['imu']
-        self.angle = imu["yaw"]
-        # if init_update:
-        #     self.reference_angle = angle
-        #     self.prev_angle = angle
-        #     self.angle = angle
-        # else:
-        #     if angle < -90:
-        #         if self.prev_angle > 90:
-        #             self.prev_angle -= 360
-        #     if angle > 90:
-        #         if self.prev_angle < -90:
-        #             self.prev_angle += 360
-        #     diff = angle - self.prev_angle
-        #     self.angle += diff
-        #     self.prev_angle = angle
-        #
-        # self.offset_x = sensor_data["down_x_offset"]
-        # self.offset_y = sensor_data["down_y_offset"]
-        #
+            imu = sensor_data['imu']
+            self.angle = imu["yaw"]
+            if self.angle < 0:
+                self.angle += 360
         # self._update_movement()
         #
         # self._calc_errors()
@@ -265,7 +276,6 @@ class Mouse:
             f"^ {self.front_wall_distance} {self.front_wall} \n"
             f"> {self.right_wall_distance} {self.right_wall} \n"
             f"angle: {self.angle} ({self.reference_angle})\n"
-            f"x: {self.offset_x} y: {self.offset_y}\n"
             f"error: {self.rot_error}"
         )
 

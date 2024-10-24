@@ -4,8 +4,8 @@ from src.Mouse import Mouse
 
 
 class Solver:
-    def __init__(self):
-        self.mouse = Mouse()
+    def __init__(self, sim: bool = False):
+        self.mouse = Mouse(sim)
         self.maze = Maze()
 
     def _scan_position(self):
@@ -15,47 +15,25 @@ class Solver:
         self.mouse.update_sensor_data()
         self.maze.set_walls(self.mouse.left_wall, self.mouse.front_wall, self.mouse.right_wall)
 
-    # def _move_by_direction(self, direction: constants.Directions):
-    #     """
-    #     move mouse 1 cell by chosen direction relative to maze
-    #     :param direction: direction to move
-    #     """
-    #     direction = direction % 4
-    #     current_direction = self.maze.mouse_direction
-    #     if current_direction == direction:
-    #         self.mouse.pos -= constants.CELL
-    #         self.mouse.wait_until_position(constants.CELL - constants.SENSING_OFFSET)
-    #     elif (current_direction + 1) % 4 == direction:
-    #         self.mouse.right()
-    #         self.maze.update_direction(constants.Directions.right)
-    #     elif (current_direction + 2) % 4 == direction:
-    #         self.mouse.pos -= constants.CELL
-    #         self.mouse.wait_until_position(
-    #             constants.HALF_CELL - constants.SENSING_OFFSET, stop_threshold=constants.CENTER_REFERENCE
-    #         )
-    #         self.mouse.stop()
-    #         self.mouse.around()
-    #         self.maze.update_direction(constants.Directions.down)
-    #     elif (current_direction + 3) % 4 == direction:
-    #         self.mouse.left()
-    #         self.maze.update_direction(constants.Directions.left)
-    #     self.maze.update_position()
     def _move_by_direction(self, direction: constants.Directions):
         """
         move mouse 1 cell by chosen direction relative to mouse
         :param direction: direction to move
         """
-        if direction == constants.Directions.up:
+        direction = direction % 4
+        current_direction = self.maze.mouse_direction
+        if current_direction == direction:
             pass
-        elif direction == constants.Directions.right:
+        elif (current_direction + constants.Directions.right) % 4 == direction:
             self.mouse.right()
-        elif direction == constants.Directions.down:
-            self.mouse.right()
-            self.mouse.right()
-        elif direction == constants.Directions.left:
+            self.maze.update_direction(constants.Directions.right)
+        elif (current_direction + constants.Directions.down) % 4 == direction:
+            self.mouse.around()
+            self.maze.update_direction(constants.Directions.down)
+        elif (current_direction + constants.Directions.left) % 4 == direction:
             self.mouse.left()
+            self.maze.update_direction(constants.Directions.left)
         self.mouse.forward()
-        self.maze.update_direction(direction)
         self.maze.update_position()
 
     def shortest(self):
@@ -64,57 +42,51 @@ class Solver:
         weight map to find new path
         :return:
         """
-        # self.mouse.pos = constants.CELL + constants.HALF_CELL
-        self.maze.set_walls(self.mouse.left_wall, self.mouse.front_wall, self.mouse.right_wall)
         self.maze.floodfill()
-        # if self.maze.check_wall(self.maze.mouse_position, constants.Directions.up):
-        #     self.mouse.right_in_place()
-        #     self.maze.update_direction(constants.Directions.right)
-
         path_exists = self.maze.find_path(self.maze.mouse_position)
-        self.maze.print_maze()
+        print(self.maze)
         recalculate = False
 
         if path_exists:
             while path_exists and not self.maze.on_finish():
                 while self.maze.path_not_empty():
                     self._scan_position()
-                    self.maze.print_maze()
+                    print(self.maze)
 
                     next_path = self.maze.get_next_move()
 
                     if constants.DEBUG_LOGGING:
                         print(f'Mouse position: {self.maze.mouse_position}')
-                        print(f'Finish: {self.maze.finish_cell}')
+                        print(f'Finish: {self.maze.finish}')
                         print(f'Next move: {next_path}')
                         print(f'Path: {self.maze.path}')
+                        print(self.mouse)
 
                     if next_path == 'F':
-                        if self.maze.check_wall(self.maze.mouse_position, constants.Directions.up):
+                        if self.mouse.front_wall:
                             recalculate = True
                         else:
-                            self._move_by_direction(direction=constants.Directions.up)
+                            self._move_by_direction(direction=self.maze.mouse_direction)
                     elif next_path == 'R':
-                        if self.maze.check_wall(self.maze.mouse_position, constants.Directions.right):
+                        if self.mouse.right_wall:
                             recalculate = True
                         else:
-                            self._move_by_direction(direction=constants.Directions.right)
+                            self._move_by_direction(direction=self.maze.mouse_direction + constants.Directions.right)
                             self.maze.get_next_move()  # pop F after turn
                     elif next_path == 'A':
-                        self._move_by_direction(direction=constants.Directions.down)
+                        self._move_by_direction(direction=self.maze.mouse_direction + constants.Directions.down)
                         self.maze.get_next_move()  # pop F after turn
                     elif next_path == 'L':
-                        if self.maze.check_wall(self.maze.mouse_position, constants.Directions.left):
+                        if self.mouse.left_wall:
                             recalculate = True
                         else:
-                            self._move_by_direction(direction=constants.Directions.left)
+                            self._move_by_direction(direction=self.maze.mouse_direction + constants.Directions.left)
                             self.maze.get_next_move()  # pop F after turn
 
                     if recalculate:
                         self.maze.floodfill()
                         path_exists = self.maze.find_path(self.maze.mouse_position)
                         recalculate = False
-                        self.maze.print_maze()
                         if constants.DEBUG_LOGGING:
                             print("Recalculated!")
                         break
@@ -134,7 +106,7 @@ class Solver:
 
 
 if __name__ == '__main__':
-    solver = Solver()
+    solver = Solver(sim=True)
     solver.shortest()
     input('Move robot to the start')
     solver.reset_position()
