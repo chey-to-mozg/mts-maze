@@ -32,6 +32,7 @@ class Mouse:
 
         self.angle = 0
         self.reference_angle = 0
+        self.angle_error = 0
         self.pos = 0
         self.speed = 0
         self.max_speed = constants.MAX_SPEED
@@ -40,7 +41,6 @@ class Mouse:
         self._steering_enabled = True
 
         self.update_sensor_data(init_update=True)
-        self.reference_angle = self.angle
 
     # api control
     def _make_action(self, action: str, distance: int):
@@ -61,21 +61,17 @@ class Mouse:
         self._make_action("forward", distance)
 
     def right(self, angle: int = constants.TURN_90):
-        # find new angle
-        self.reference_angle = self.reference_angle + angle
-        # find diff
-        diff = abs(self.reference_angle - self.angle) + constants.ANGLE_OFFSET
-        # norm angle
-        self.reference_angle = self.reference_angle % 360
+        # set reference to be always "right" number i.e. 0, 45, 90, 135 e.t.c
+        self.reference_angle = (self.reference_angle + angle) % 360
+        # calculate diff between current angle and desired. Add offset to calibrate angle
+        diff = (self.reference_angle - self.angle + constants.ANGLE_OFFSET) % 360
         self._make_action("right", diff)
 
     def left(self, angle: int = constants.TURN_90):
-        # find new angle
-        self.reference_angle = self.reference_angle - angle
-        # find diff
-        diff = abs(self.reference_angle - self.angle) + constants.ANGLE_OFFSET
-        # norm angle
-        self.reference_angle = (self.reference_angle + 360) % 360
+        # set reference to be always "right" number i.e. 0, 45, 90, 135 e.t.c
+        self.reference_angle = (self.reference_angle - angle) % 360
+        # calculate diff between current angle and desired. Add offset to calibrate angle
+        diff = (self.angle - self.reference_angle + constants.ANGLE_OFFSET) % 360
         self._make_action("left", diff)
 
     def backward(self, distance: int = 100):
@@ -263,9 +259,13 @@ class Mouse:
             self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
 
             imu = sensor_data['imu']
-            self.angle = imu["yaw"]
+            self.angle = imu["yaw"] - self.angle_error
             if self.angle < 0:
                 self.angle += 360
+
+            if init_update:
+                self.angle_error = self.angle
+                self.angle = 0
         # self._update_movement()
         #
         # self._calc_errors()
