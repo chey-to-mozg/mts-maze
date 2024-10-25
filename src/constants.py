@@ -9,8 +9,8 @@ class Directions(IntEnum):
     left = 3
 
 
-MOUSE_ID = "854CAF96103A6853"
-MOUSE_IP = "http://192.168.68.167"
+MOUSE_ID = "7536AF961D784A53"
+MOUSE_IP = "http://192.168.68.202"
 DEBUG_LOGGING = True
 
 # Mouse related
@@ -18,7 +18,7 @@ SENSING_OFFSET = 40
 ROTATION_SPEED = 220
 FORWARD_SPEED = 70
 FRONT_REFERENCE = 70
-ANGLE_OFFSET = 5
+ANGLE_OFFSET = 6
 KP_ROT = 4.0
 KP_STEERING = 0.4
 MAX_SPEED = 200
@@ -39,7 +39,7 @@ TURN_45 = 45
 CELL = 150
 HALF_CELL = CELL / 2
 DIAG_CELL = int(math.sqrt(HALF_CELL**2 + HALF_CELL**2))
-TO_CENTER = HALF_CELL - 35
+TO_CENTER = HALF_CELL - 20
 
 # all wall related information is stored in one uint8_t array, first 4 bits to mark walls visited (1 bit for 1 wall)
 # last 4 bits for actual wall data (1 bit for 1 wall)
