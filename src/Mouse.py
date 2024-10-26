@@ -29,6 +29,7 @@ class Mouse:
         self.left_wall = False
         self.front_wall = False
         self.right_wall = False
+        self._request_delay = 1  # secs
 
         self.angle = 0
         self.reference_angle = 0
@@ -55,7 +56,7 @@ class Mouse:
         else:
             body = {'direction': action, 'id': constants.MOUSE_ID, 'len': distance}
             requests.put(f"{self._api_route}/move", json=body)
-            time.sleep(1)
+            time.sleep(self._request_delay)
 
     def forward(self, distance: int = constants.CELL):
         self._make_action("forward", distance)
@@ -77,9 +78,18 @@ class Mouse:
     def backward(self, distance: int = 100):
         self._make_action("backward", distance)
 
+    def calibrate_back_wall(self):
+        if self._sim:
+            return
+        self.backward()
+        self.forward(distance=constants.TO_CENTER)
+
     def around(self):
         self.left()
         self.left()
+
+    def set_delay(self, delay: float):
+        self._request_delay = delay
 
     # manual control # move to separate class?
 

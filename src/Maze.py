@@ -1,3 +1,4 @@
+import json
 import queue
 
 from src import constants
@@ -16,13 +17,17 @@ class Maze:
         (0, shape - 1),
     )
 
-    def __init__(self):
+    def __init__(self, load_maze: bool = False):
         self.mouse_position = self.start
         self.mouse_direction = self.start_direction
         self.maze = []
         self.walls = []
         self.path = []
         self.reset_maze()
+        if load_maze:
+            self.load_maze()
+            self.floodfill()
+            print(self)
 
     @property
     def cur_x(self):
@@ -116,6 +121,7 @@ class Maze:
         :param wall_idx: wall index from WALLS
         :return: True if wall present
         """
+        wall_idx = wall_idx % 4
         wall = constants.WALLS[wall_idx]
         return (self.walls[position[0]][position[1]] & wall) == wall
 
@@ -232,10 +238,24 @@ class Maze:
                     if (self.walls[y][x] & wall) == 0:
                         self.walls[y][x] |= constants.WALLS[i]
 
-    def __str__(self):
+    def save_maze(self):
+        """
+        save wall information to json file
+        """
+        with open('maze.json', 'w') as f:
+            json.dump(self.walls, f)
+
+    def load_maze(self):
+        """
+        save wall information to json file
+        """
+        with open('maze.json', 'r') as f:
+            self.walls = json.load(f)
+
+    def __str__(self) -> str:
         maze = []
         if not constants.DEBUG_LOGGING:
-            return
+            return ''
         cell_shape = 3
         # print header
         for x in range(self.shape):
@@ -281,3 +301,7 @@ class Maze:
                 else:
                     maze.append('|\n')
         return ''.join(maze)
+
+
+if __name__ == '__main__':
+    Maze(load_maze=True)
