@@ -48,7 +48,9 @@ class Solver:
         moved = False
         if not self.maze.check_wall(self.maze.mouse_position, maze_direction):
             self._move_by_direction(direction=maze_direction)
-            back_wall_exists = self.maze.check_wall(self.maze.mouse_position, maze_direction + constants.Directions.down)
+            back_wall_exists = self.maze.check_wall(
+                self.maze.mouse_position, maze_direction + constants.Directions.down
+            )
             if self.calibrate_back_wall and back_wall_exists:
                 self.mouse.calibrate_back_wall()
             moved = True
