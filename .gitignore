@@ -4,3 +4,4 @@ logs
 mts.exe
 mts_champ.rar
 .idea/
+src/__pycache__/

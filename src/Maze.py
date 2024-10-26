@@ -132,7 +132,7 @@ class Maze:
             neigh_y = (position[0] + self.NEIGHBOURS[i][0]) % self.shape
             neigh_x = (position[1] + self.NEIGHBOURS[i][1]) % self.shape
             neigh_val = self.maze[neigh_y][neigh_x]
-            if not self.check_wall(position, constants.WALLS[i]):
+            if not self.check_wall(position, i):
                 neigh_data = {"dir": i, "pos": (neigh_y, neigh_x), "val": neigh_val}
                 neighbours.append(neigh_data)
         return neighbours
@@ -232,55 +232,52 @@ class Maze:
                     if (self.walls[y][x] & wall) == 0:
                         self.walls[y][x] |= constants.WALLS[i]
 
-    def print_maze(self, show_weights: bool = True):
+    def __str__(self):
+        maze = []
         if not constants.DEBUG_LOGGING:
             return
         cell_shape = 3
         # print header
         for x in range(self.shape):
-            print("+", end="")
+            maze.append('+')
             for sub_x in range(cell_shape):
-                print("-", end="")
-        print("+")
+                maze.append('-')
+        maze.append('+\n')
         for y in range(self.shape):
             for sub_y in range(cell_shape - 1):
                 for x in range(self.shape):
-                    if show_weights:
-                        maze_value = self.maze[y][x]
-                    else:
-                        maze_value = int(self.is_visited((y, x)))
+                    maze_value = str(self.maze[y][x])
+                    value_length = len(maze_value)
                     wall_value = self.walls[y][x]
                     left_wall = wall_value & constants.LEFT_WALL
                     down_wall = wall_value & constants.DOWN_WALL
 
                     if sub_y == 0:
                         if left_wall:
-                            print("|", end="")
+                            maze.append('|')
                         else:
-                            print(" ", end="")
+                            maze.append(' ')
                         if y == self.cur_y and x == self.cur_x:
-                            print(" ", end="")
-                            print(
-                                constants.DIRECTION_TO_CHAR[self.mouse_direction],
-                                end="",
-                            )
-                            print(" ", end="")
-                        elif maze_value > 99:
-                            print(maze_value, end="")
-                        elif maze_value > 9:
-                            print(" ", end="")
-                            print(maze_value, end="")
+                            maze.append(' ')
+                            maze.append(constants.DIRECTION_TO_CHAR[self.mouse_direction])
+                            maze.append(' ')
+                        elif value_length > 2:
+                            maze.append(maze_value)
+                        elif value_length > 1:
+                            maze.append(' ')
+                            maze.append(maze_value)
                         else:
-                            print(" ", end="")
-                            print(maze_value, end="")
-                            print(" ", end="")
+                            maze.append(' ')
+                            maze.append(maze_value)
+                            maze.append(' ')
                     else:
-                        print("+", end="")
+                        maze.append('+')
                         if down_wall:
-                            print("---", end="")
+                            maze.append('---')
                         else:
-                            print("   ", end="")
+                            maze.append('   ')
                 if sub_y == 1:
-                    print("+")
+                    maze.append('+\n')
                 else:
-                    print("|")
+                    maze.append('|\n')
+        return ''.join(maze)

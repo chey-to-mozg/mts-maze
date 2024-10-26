@@ -1,3 +1,4 @@
+import math
 from enum import IntEnum
 
 
@@ -8,15 +9,16 @@ class Directions(IntEnum):
     left = 3
 
 
-MOUSE_ID = ""
-DEBUG_LOGGING = False
+MOUSE_ID = "7536AF961D784A53"
+MOUSE_IP = "http://192.168.68.202"
+DEBUG_LOGGING = True
 
 # Mouse related
 SENSING_OFFSET = 40
 ROTATION_SPEED = 220
 FORWARD_SPEED = 70
 FRONT_REFERENCE = 70
-ANGLE_OFFSET = 10
+ANGLE_OFFSET = 6
 KP_ROT = 4.0
 KP_STEERING = 0.4
 MAX_SPEED = 200
@@ -28,11 +30,16 @@ RIGHT_REFERENCE = 49
 WALL_THRESHOLD = 130  # wall sensor data in center {'1': 239, '2': 59, '3': 82, '4': 225, '5': 70, '6': 93},
 FRONT_WALL_THRESHOLD = 180
 PRE_TURN_THRESHOLD = 110
-CENTER_REFERENCE = 80
+CENTER_REFERENCE = 70
+
+TURN_90 = 90
+TURN_45 = 45
 
 # Maze related
-CELL = 160
+CELL = 150
 HALF_CELL = CELL / 2
+DIAG_CELL = int(math.sqrt(HALF_CELL**2 + HALF_CELL**2))
+TO_CENTER = HALF_CELL - 20
 
 # all wall related information is stored in one uint8_t array, first 4 bits to mark walls visited (1 bit for 1 wall)
 # last 4 bits for actual wall data (1 bit for 1 wall)
