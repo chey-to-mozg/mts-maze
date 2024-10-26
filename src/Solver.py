@@ -11,9 +11,10 @@ class Solver:
         'L': constants.Directions.left,
     }
 
-    def __init__(self, sim: bool = False, load_maze: bool = False):
+    def __init__(self, sim: bool = False, load_maze: bool = False, calibrate_back_wall: bool = False):
         self.mouse = Mouse(sim)
         self.maze = Maze(load_maze)
+        self.calibrate_back_wall = calibrate_back_wall
 
     def _scan_position(self):
         """
@@ -47,7 +48,8 @@ class Solver:
         moved = False
         if not self.maze.check_wall(self.maze.mouse_position, maze_direction):
             self._move_by_direction(direction=maze_direction)
-            if self.maze.check_wall(self.maze.mouse_position, maze_direction + constants.Directions.down):
+            back_wall_exists = self.maze.check_wall(self.maze.mouse_position, maze_direction + constants.Directions.down)
+            if self.calibrate_back_wall and back_wall_exists:
                 self.mouse.calibrate_back_wall()
             moved = True
         return moved
@@ -105,7 +107,7 @@ class Solver:
 
 
 if __name__ == '__main__':
-    solver = Solver(sim=True, load_maze=False)
+    solver = Solver(sim=True, load_maze=False, calibrate_back_wall=True)
     solver.shortest()
     solver.maze.save_maze()
     input('Move robot to the start')
@@ -113,5 +115,6 @@ if __name__ == '__main__':
     solver.reset_position()
     solver.shortest()
     input('Move robot to the start')
+    solver.calibrate_back_wall = False
     solver.reset_position()
     solver.shortest()

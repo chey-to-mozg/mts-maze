@@ -80,6 +80,7 @@ class Mouse:
 
     def calibrate_back_wall(self):
         if self._sim:
+            print('Calibrate back wall')
             return
         self.backward()
         self.forward(distance=constants.TO_CENTER)
