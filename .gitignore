@@ -5,3 +5,5 @@ mts.exe
 mts_champ.rar
 .idea/
 src/__pycache__/
+src/maze.json
+.env
