@@ -100,6 +100,37 @@ class Solver:
         self._scan_position()
         return path_exists
 
+
+    def blind_run(self, diag_path: list[str]):
+        for next_path in diag_path:
+            self._scan_position()
+            mouse_pos = self.maze.mouse_position
+            if constants.DEBUG_LOGGING:
+                print(self.maze)
+                print(f'Mouse position: {mouse_pos}')
+                print(f'Finish: {self.maze.finish}')
+                print(f'Next move: {next_path}')
+                print(f'Path: {self.maze.diag_path}')
+                print(self.mouse)
+
+            if next_path == "F":
+                self.mouse.forward()
+            elif next_path == "FHalf":
+                self.mouse.forward(constants.HALF_CELL)
+            elif next_path == "FDiag":
+                self.mouse.forward(constants.DIAG_CELL)
+            elif next_path == "R":
+                self.mouse.right()
+            elif next_path == "RDiag":
+                self.mouse.right(constants.TURN_45)
+            elif next_path == "L":
+                self.mouse.left()
+            elif next_path == "LDiag":
+                self.mouse.left(constants.TURN_45)
+
+        self._scan_position()
+
+
     def reset_position(self):
         """
         set mouse position inside this class to initial place
