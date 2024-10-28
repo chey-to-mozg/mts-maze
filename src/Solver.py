@@ -112,63 +112,86 @@ class Solver:
         self._scan_position()
         return path_exists
 
+    def make_new_pattern(self, diagonal_pattern, path_str, str_offset):
+        new_action_array = []
+        pattern_str = diagonal_pattern[0]
+    
+        # Prepare for diagonal run if we don't do it
+        if make_new_pattern.is_align:
+            new_action_array.append(path_to_dir[pattern_str[0]] + 4)  # Half of forward
+            new_action_array.append(path_to_dir[pattern_str[1]] + 4)  # Half of turn
+            make_new_pattern.is_align = False
+        else:
+            new_action_array.append(8)  # Diagonal code
+    
+        # Run on diagonal
+        diagonal_len = int((len(diagonal_pattern[0]) - 1) / 2)
+        for i in range(diagonal_len):
+            new_action_array.append(8)
+    
+        # If diagonal has ended - return to base position
+        if ((diagonal_pattern.end() + str_offset) >= len(path_str)) or (path_str[diagonal_pattern.end() + str_offset] == 'F' and not make_new_pattern.is_align):
+            # Last turn on the diagonal
+            new_action_array.append(path_to_dir[path_str[diagonal_pattern.end() + str_offset - 2]] + 4)
+            new_action_array.append(path_to_dir[pattern_str[0]] + 4)
+            make_new_pattern.is_align = True
+    
+        return new_action_array
+
     def make_diagonals_path(self, old_path: list[str]):
+        diagonal_pattern_1 = r'(F(RF((LF)?|(?!RF)))+)|(F(LF((RF)?|(?!=LF)))+)'
+        path_str = ''
         new_path = []
-        path_str = ""
+    
+        # Preparation of path str
+        temp_str = ''
+        for action in old_path:
+            temp_str += f'{action} '
+        temp_str = temp_str[:-1:]
+        temp_str = re.sub(r'L F L F', r'L F L N F', temp_str)
+        temp_str = re.sub(r'R F R F', r'R F R N F', temp_str)
+        old_path = temp_str.split(' ')
+    
         for move_action in old_path:
             path_str += move_action
-        
-        res = re.search(diagonal_pattern, path_str)
-        new_res = res
-        
-        str_offset = 0
+        print(path_str)
+    
+        found_pattern = re.search(diagonal_pattern_1, path_str)
+        new_res = found_pattern
+    
         index = 0
-        is_align = True
-        align_mem = 0
-        
+        str_offset = 0
+        make_new_pattern.is_align = True
+    
         while new_res is not None:
-            # print(res)
-            new_pattern = []
-        
-            # Start analyze founded res
-            res_str = res[0]
-        
-            # Prepare for diagonal run if we don't do it
-            if is_align:
-                new_pattern.append(path_to_dir[res_str[0]] + 4)
-                new_pattern.append(path_to_dir[res_str[1]] + 4)
-                align_mem = path_to_dir[res_str[1]]
-                is_align = False
-            else:
-                new_pattern.append(8) # Diagonal code
-        
-            # Run on diagonal
-            diagonal_len = int((len(res[0]) - 1) / 2)
-            for i in range(diagonal_len):
-                new_pattern.append(8) # Diagonal code
-        
-            # If diagonal has ended - return to base position
-            if path_str[res.end() + str_offset] == 'F' and not is_align:
-                # Last turn on the diagonal
-                new_pattern.append(path_to_dir[path_str[res.end() + str_offset - 2]] + 4)
-                new_pattern.append(path_to_dir[res_str[0]] + 4)
-                is_align = True
-        
+            print(found_pattern)
+    
+            new_actions = make_new_pattern(found_pattern, path_str, str_offset)
+    
             # Change new path array
             while index != len(old_path):
-                if index != res.start() + str_offset:
-                    new_path.append(old_path[index])
+                # If not found pattern yet
+                if index != found_pattern.start() + str_offset:
+                    if old_path[index] != 'N':
+                        new_path.append(old_path[index])
                     index += 1
                 else:
-                    for new_action in new_pattern:
+                    for new_action in new_actions:
                         new_path.append(dir_to_path[new_action])
-                    index = res.end() + str_offset
-        
-                    new_res = re.search(diagonal_pattern, path_str[res.end() + str_offset::])
+                    index = found_pattern.end() + str_offset
+    
+                    # Update found pattern
+                    new_res = re.search(diagonal_pattern_1, path_str[found_pattern.end() + str_offset::])
                     if new_res is not None:
-                        str_offset += res.end()
-                        res = new_res
+                        str_offset += found_pattern.end()
+                        found_pattern = new_res
                         break
+    
+        # Add tail of origin path
+        while index != len(old_path):
+            if old_path[index] != 'N':
+                new_path.append(old_path[index])
+            index += 1
     
         return new_path
 
