@@ -2,6 +2,8 @@ from src import constants
 from src.Maze import Maze
 from src.Mouse import Mouse
 
+import re
+
 
 class Solver:
     path_to_dir = {
@@ -27,6 +29,7 @@ class Solver:
         self.mouse = Mouse(sim)
         self.maze = Maze(load_maze)
         self.calibrate_back_wall = calibrate_back_wall
+        self.is_align = True
 
     def _scan_position(self):
         """
@@ -117,10 +120,10 @@ class Solver:
         pattern_str = diagonal_pattern[0]
     
         # Prepare for diagonal run if we don't do it
-        if make_new_pattern.is_align:
-            new_action_array.append(path_to_dir[pattern_str[0]] + 4)  # Half of forward
-            new_action_array.append(path_to_dir[pattern_str[1]] + 4)  # Half of turn
-            make_new_pattern.is_align = False
+        if self.is_align:
+            new_action_array.append(self.path_to_dir[pattern_str[0]] + 4)  # Half of forward
+            new_action_array.append(self.path_to_dir[pattern_str[1]] + 4)  # Half of turn
+            self.is_align = False
         else:
             new_action_array.append(8)  # Diagonal code
     
@@ -130,11 +133,12 @@ class Solver:
             new_action_array.append(8)
     
         # If diagonal has ended - return to base position
-        if ((diagonal_pattern.end() + str_offset) >= len(path_str)) or (path_str[diagonal_pattern.end() + str_offset] == 'F' and not make_new_pattern.is_align):
+        if (((diagonal_pattern.end() + str_offset) >= len(path_str)) or
+                (path_str[diagonal_pattern.end() + str_offset] == 'F' and not self.is_align)):
             # Last turn on the diagonal
-            new_action_array.append(path_to_dir[path_str[diagonal_pattern.end() + str_offset - 2]] + 4)
-            new_action_array.append(path_to_dir[pattern_str[0]] + 4)
-            make_new_pattern.is_align = True
+            new_action_array.append(self.path_to_dir[path_str[diagonal_pattern.end() + str_offset - 2]] + 4)
+            new_action_array.append(self.path_to_dir[pattern_str[0]] + 4)
+            self.is_align = True
     
         return new_action_array
 
@@ -161,12 +165,12 @@ class Solver:
     
         index = 0
         str_offset = 0
-        make_new_pattern.is_align = True
+        self.is_align = True
     
         while new_res is not None:
             print(found_pattern)
     
-            new_actions = make_new_pattern(found_pattern, path_str, str_offset)
+            new_actions = self.make_new_pattern(found_pattern, path_str, str_offset)
     
             # Change new path array
             while index != len(old_path):
@@ -177,7 +181,7 @@ class Solver:
                     index += 1
                 else:
                     for new_action in new_actions:
-                        new_path.append(dir_to_path[new_action])
+                        new_path.append(self.dir_to_path[new_action])
                     index = found_pattern.end() + str_offset
     
                     # Update found pattern
