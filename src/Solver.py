@@ -12,16 +12,16 @@ class Solver:
     }
 
     dir_to_path = {
-            constants.Directions.up: 'F',
-            constants.Directions.right: 'R',
-            constants.Directions.down: 'A',
-            constants.Directions.left: 'L',
-            constants.Directions.up_half: 'F_H',
-            constants.Directions.right_half: 'R_45',
-            constants.Directions.down_half: 'A_H',
-            constants.Directions.left_half: 'L_45',
-            constants.Directions.diagonal: 'D',
-        }
+        constants.Directions.up: 'F',
+        constants.Directions.right: 'R',
+        constants.Directions.down: 'A',
+        constants.Directions.left: 'L',
+        constants.Directions.up_half: 'F_H',
+        constants.Directions.right_half: 'R_45',
+        constants.Directions.down_half: 'A_H',
+        constants.Directions.left_half: 'L_45',
+        constants.Directions.diagonal: 'D',
+    }
 
     def __init__(self, sim: bool = False, load_maze: bool = False, calibrate_back_wall: bool = False):
         self.mouse = Mouse(sim)
