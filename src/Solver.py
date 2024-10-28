@@ -112,77 +112,51 @@ class Solver:
         self._scan_position()
         return path_exists
 
-    def make_diagonals_path(self, old_path: list[str]):
+    def _check_pattern(self, path: list[str], path_idx: int, pattern: list[str]):
+        correct_pattern = True
+        for pattern_idx in range(len(pattern)):
+            _path_idx = path_idx + pattern_idx
+            if _path_idx >= len(path) or _path_idx < 0:
+                correct_pattern = False
+                break
+            if pattern[pattern_idx] != path[_path_idx]:
+                correct_pattern = False
+                break
+        return correct_pattern
+
+    def _make_diag_path(self, path: list[str]) -> list[str]:
+        path.append('F')  # add extra F for correct finish
+
+        pattern_data = {
+            'l_diag': (['F', 'L', 'F'], ['D']),
+            'r_diag': (['F', 'R', 'F'], ['D']),
+            'pre_turn_l_diag': (['F', 'F', 'L'], ['F_H', 'L_45']),
+            'pre_turn_r_diag': (['F', 'F', 'R'], ['F_H', 'R_45']),
+            'post_turn_l_diag': (['L', 'F', 'F'], ['L_45', 'F_H']),
+            'post_turn_r_diag': (['R', 'F', 'F'], ['R_45', 'F_H']),
+            'right_angle_l': (['L', 'F', 'L'], ['L']),
+            'right_angle_r': (['R', 'F', 'R'], ['R']),
+            'skip_diag_r': (['L', 'F', 'R'], None),
+            'skip_diag_l': (['R', 'F', 'L'], None),
+        }
+
         new_path = []
-        path_str = ""
-        for move_action in old_path:
-            path_str += move_action
-        
-        res = re.search(diagonal_pattern, path_str)
-        new_res = res
-        
-        str_offset = 0
-        index = 0
-        is_align = True
-        align_mem = 0
-        
-        while new_res is not None:
-            # print(res)
-            new_pattern = []
-        
-            # Start analyze founded res
-            res_str = res[0]
-        
-            # Prepare for diagonal run if we don't do it
-            if is_align:
-                new_pattern.append(path_to_dir[res_str[0]] + 4)
-                new_pattern.append(path_to_dir[res_str[1]] + 4)
-                align_mem = path_to_dir[res_str[1]]
-                is_align = False
-            else:
-                new_pattern.append(8) # Diagonal code
-        
-            # Run on diagonal
-            diagonal_len = int((len(res[0]) - 1) / 2)
-            for i in range(diagonal_len):
-                new_pattern.append(8) # Diagonal code
-        
-            # If diagonal has ended - return to base position
-            if path_str[res.end() + str_offset] == 'F' and not is_align:
-                # Last turn on the diagonal
-                new_pattern.append(path_to_dir[path_str[res.end() + str_offset - 2]] + 4)
-                new_pattern.append(path_to_dir[res_str[0]] + 4)
-                is_align = True
-        
-            # Change new path array
-            while index != len(old_path):
-                if index != res.start() + str_offset:
-                    new_path.append(old_path[index])
-                    index += 1
-                else:
-                    for new_action in new_pattern:
-                        new_path.append(dir_to_path[new_action])
-                    index = res.end() + str_offset
-        
-                    new_res = re.search(diagonal_pattern, path_str[res.end() + str_offset::])
-                    if new_res is not None:
-                        str_offset += res.end()
-                        res = new_res
-                        break
-    
+        for path_idx in range(len(path)):
+            check_idx = path_idx - 1
+            pattern_found = False
+            for pattern, output in pattern_data.values():
+                if self._check_pattern(path, check_idx, pattern):
+                    if output is not None:
+                        new_path.extend(output)
+                    pattern_found = True
+            if not pattern_found:
+                new_path.append(path[path_idx])
+
         return new_path
 
-    def blind_run(self, diag_path: list[str]):
+    def _blind_run(self, diag_path: list[str]):
         for next_path in diag_path:
             self._scan_position()
-            mouse_pos = self.maze.mouse_position
-            if constants.DEBUG_LOGGING:
-                print(self.maze)
-                print(f'Mouse position: {mouse_pos}')
-                print(f'Finish: {self.maze.finish}')
-                print(f'Next move: {next_path}')
-                print(f'Path: {self.maze.diag_path}')
-                print(self.mouse)
 
             if next_path == "F":
                 self.mouse.forward()
@@ -201,6 +175,12 @@ class Solver:
 
         self._scan_position()
 
+    def diag_run(self):
+        self.maze.find_path(self.maze.mouse_position)
+        print(self.maze.path)
+        diag_path = self._make_diag_path(self.maze.path)
+        print(diag_path)
+        self._blind_run(diag_path)
 
     def reset_position(self):
         """
@@ -215,10 +195,6 @@ if __name__ == '__main__':
     solver.shortest()
     solver.maze.save_maze()
     input('Move robot to the start')
+    solver = Solver(sim=True, load_maze=True, calibrate_back_wall=False)
     solver.mouse.set_delay(0.5)
-    solver.reset_position()
-    solver.shortest()
-    input('Move robot to the start')
-    solver.calibrate_back_wall = False
-    solver.reset_position()
-    solver.shortest()
+    solver.diag_run()
