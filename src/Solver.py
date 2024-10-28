@@ -2,6 +2,8 @@ from src import constants
 from src.Maze import Maze
 from src.Mouse import Mouse
 
+import re
+
 
 class Solver:
     path_to_dir = {
@@ -11,10 +13,23 @@ class Solver:
         'L': constants.Directions.left,
     }
 
+    dir_to_path = {
+            constants.Directions.up: 'F',
+            constants.Directions.right: 'R',
+            constants.Directions.down: 'A',
+            constants.Directions.left: 'L',
+            constants.Directions.up_half: 'F_H',
+            constants.Directions.right_half: 'R_45',
+            constants.Directions.down_half: 'A_H',
+            constants.Directions.left_half: 'L_45',
+            constants.Directions.diagonal: 'D',
+        }
+
     def __init__(self, sim: bool = False, load_maze: bool = False, calibrate_back_wall: bool = False):
         self.mouse = Mouse(sim)
         self.maze = Maze(load_maze)
         self.calibrate_back_wall = calibrate_back_wall
+        self.is_align = True
 
     def _scan_position(self):
         """
@@ -100,6 +115,89 @@ class Solver:
         self._scan_position()
         return path_exists
 
+    def make_new_pattern(self, diagonal_pattern, path_str, str_offset):
+        new_action_array = []
+        pattern_str = diagonal_pattern[0]
+    
+        # Prepare for diagonal run if we don't do it
+        if self.is_align:
+            new_action_array.append(self.path_to_dir[pattern_str[0]] + 4)  # Half of forward
+            new_action_array.append(self.path_to_dir[pattern_str[1]] + 4)  # Half of turn
+            self.is_align = False
+        else:
+            new_action_array.append(8)  # Diagonal code
+    
+        # Run on diagonal
+        diagonal_len = int((len(diagonal_pattern[0]) - 1) / 2)
+        for i in range(diagonal_len):
+            new_action_array.append(8)
+    
+        # If diagonal has ended - return to base position
+        if (((diagonal_pattern.end() + str_offset) >= len(path_str)) or
+                (path_str[diagonal_pattern.end() + str_offset] == 'F' and not self.is_align)):
+            # Last turn on the diagonal
+            new_action_array.append(self.path_to_dir[path_str[diagonal_pattern.end() + str_offset - 2]] + 4)
+            new_action_array.append(self.path_to_dir[pattern_str[0]] + 4)
+            self.is_align = True
+    
+        return new_action_array
+
+    def make_diagonals_path(self, old_path: list[str]):
+        diagonal_pattern_1 = r'(F(RF((LF)?|(?!RF)))+)|(F(LF((RF)?|(?!=LF)))+)'
+        path_str = ''
+        new_path = []
+    
+        # Preparation of path str
+        temp_str = ''
+        for action in old_path:
+            temp_str += f'{action} '
+        temp_str = temp_str[:-1:]
+        temp_str = re.sub(r'L F L F', r'L F L N F', temp_str)
+        temp_str = re.sub(r'R F R F', r'R F R N F', temp_str)
+        old_path = temp_str.split(' ')
+    
+        for move_action in old_path:
+            path_str += move_action
+        print(path_str)
+    
+        found_pattern = re.search(diagonal_pattern_1, path_str)
+        new_res = found_pattern
+    
+        index = 0
+        str_offset = 0
+        self.is_align = True
+    
+        while new_res is not None:
+            print(found_pattern)
+    
+            new_actions = self.make_new_pattern(found_pattern, path_str, str_offset)
+    
+            # Change new path array
+            while index != len(old_path):
+                # If not found pattern yet
+                if index != found_pattern.start() + str_offset:
+                    if old_path[index] != 'N':
+                        new_path.append(old_path[index])
+                    index += 1
+                else:
+                    for new_action in new_actions:
+                        new_path.append(self.dir_to_path[new_action])
+                    index = found_pattern.end() + str_offset
+    
+                    # Update found pattern
+                    new_res = re.search(diagonal_pattern_1, path_str[found_pattern.end() + str_offset::])
+                    if new_res is not None:
+                        str_offset += found_pattern.end()
+                        found_pattern = new_res
+                        break
+    
+        # Add tail of origin path
+        while index != len(old_path):
+            if old_path[index] != 'N':
+                new_path.append(old_path[index])
+            index += 1
+    
+        return new_path
 
     def blind_run(self, diag_path: list[str]):
         for next_path in diag_path:
@@ -115,17 +213,17 @@ class Solver:
 
             if next_path == "F":
                 self.mouse.forward()
-            elif next_path == "FHalf":
+            elif next_path == "F_H":
                 self.mouse.forward(constants.HALF_CELL)
-            elif next_path == "FDiag":
+            elif next_path == "D":
                 self.mouse.forward(constants.DIAG_CELL)
             elif next_path == "R":
                 self.mouse.right()
-            elif next_path == "RDiag":
+            elif next_path == "R_45":
                 self.mouse.right(constants.TURN_45)
             elif next_path == "L":
                 self.mouse.left()
-            elif next_path == "LDiag":
+            elif next_path == "L_45":
                 self.mouse.left(constants.TURN_45)
 
         self._scan_position()
