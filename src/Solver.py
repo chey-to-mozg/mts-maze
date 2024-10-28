@@ -186,17 +186,17 @@ class Solver:
 
             if next_path == "F":
                 self.mouse.forward()
-            elif next_path == "FHalf":
+            elif next_path == "F_H":
                 self.mouse.forward(constants.HALF_CELL)
-            elif next_path == "FDiag":
+            elif next_path == "D":
                 self.mouse.forward(constants.DIAG_CELL)
             elif next_path == "R":
                 self.mouse.right()
-            elif next_path == "RDiag":
+            elif next_path == "R_45":
                 self.mouse.right(constants.TURN_45)
             elif next_path == "L":
                 self.mouse.left()
-            elif next_path == "LDiag":
+            elif next_path == "L_45":
                 self.mouse.left(constants.TURN_45)
 
         self._scan_position()
