@@ -7,11 +7,6 @@ class Directions(IntEnum):
     right = 1
     down = 2
     left = 3
-    up_half = 4
-    right_half = 5
-    down_half = 6
-    left_half = 7
-    diagonal = 8
 
 
 MOUSE_ID = "7536AF961D784A53"
