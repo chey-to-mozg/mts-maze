@@ -114,6 +114,10 @@ class Solver:
 
     def _make_diag_path(self, path: list[str]) -> list[str]:
         path.append('F')  # add extra F for correct finish
+        new_path = []
+        if path[0] == 'R':
+            new_path.append('R')
+            path[0] = 'F'
 
         pattern_data = {
             'l_diag': (['F', 'L', 'F'], ['D']),
@@ -124,21 +128,15 @@ class Solver:
             'post_turn_r_diag': (['R', 'F', 'F'], ['R_45', 'F_H']),
             'right_angle_l': (['L', 'F', 'L'], ['L']),
             'right_angle_r': (['R', 'F', 'R'], ['R']),
-            'skip_diag_r': (['L', 'F', 'R'], None),
-            'skip_diag_l': (['R', 'F', 'L'], None),
+            'forward': (['F', 'F', 'F'], ['F']),
         }
 
-        new_path = []
         for path_idx in range(len(path)):
             check_idx = path_idx - 1
-            pattern_found = False
             for pattern, output in pattern_data.values():
                 if self._check_pattern(path, check_idx, pattern):
                     if output is not None:
                         new_path.extend(output)
-                    pattern_found = True
-            if not pattern_found:
-                new_path.append(path[path_idx])
 
         return new_path
 
@@ -165,9 +163,7 @@ class Solver:
 
     def diag_run(self):
         self.maze.find_path(self.maze.mouse_position)
-        print(self.maze.path)
         diag_path = self._make_diag_path(self.maze.path)
-        print(diag_path)
         self._blind_run(diag_path)
 
     def reset_position(self):
