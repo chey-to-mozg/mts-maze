@@ -104,20 +104,20 @@ class Solver:
         correct_pattern = True
         for pattern_idx in range(len(pattern)):
             _path_idx = path_idx + pattern_idx
-            if _path_idx >= len(path) or _path_idx < 0:
-                correct_pattern = False
-                break
-            if pattern[pattern_idx] != path[_path_idx]:
+            if _path_idx < 0 or _path_idx >= len(path):
+                cur_path = 'F'
+            else:
+                cur_path = path[_path_idx]
+            if pattern[pattern_idx] != cur_path:
                 correct_pattern = False
                 break
         return correct_pattern
 
     def _make_diag_path(self, path: list[str]) -> list[str]:
-        path.append('F')  # add extra F for correct finish
         new_path = []
         if path[0] == 'R':
             new_path.append('R')
-            path[0] = 'F'
+            path.pop(0)
 
         pattern_data = {
             'l_diag': (['F', 'L', 'F'], ['D']),
@@ -137,10 +137,11 @@ class Solver:
                 if self._check_pattern(path, check_idx, pattern):
                     if output is not None:
                         new_path.extend(output)
-
         return new_path
 
     def _blind_run(self, diag_path: list[str]):
+        if constants.DEBUG_LOGGING:
+            print(diag_path)
         for next_path in diag_path:
             self._scan_position()
 
@@ -162,6 +163,8 @@ class Solver:
         self._scan_position()
 
     def diag_run(self):
+        self.maze.lock_maze()
+        self.maze.floodfill()
         self.maze.find_path(self.maze.mouse_position)
         diag_path = self._make_diag_path(self.maze.path)
         self._blind_run(diag_path)
