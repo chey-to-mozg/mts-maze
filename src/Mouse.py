@@ -85,6 +85,19 @@ class Mouse:
         self.backward()
         self.forward(distance=constants.TO_CENTER)
 
+    def forward_calibrate(self):
+        if self._sim:
+            print('Calibrate forward wall')
+            return
+
+        self.update_sensor_data()
+        if self.front_wall:  # If mouse looks at the wall
+            calibrate_distance = abs(self.front_wall_distance - constants.START_CELL_POINT_DIST)
+            if self.front_wall_distance < constants.START_CELL_POINT_DIST:  # If mouse over move
+                self.backward(distance=calibrate_distance)
+            else:  # If mouse not enough move
+                self.forward(distance=calibrate_distance)
+
     def around(self):
         self.left()
         self.left()
