@@ -211,7 +211,6 @@ class PwmMouse(Mouse):
         pos_error = 0
         left_err = self.left_wall_distance - constants.LEFT_REFERENCE
         right_err = self.right_wall_distance - constants.RIGHT_REFERENCE
-        print(left_err, right_err)
         if self.left_wall and self.right_wall:
             pos_error = left_err - right_err
         elif self.left_wall:
@@ -219,7 +218,6 @@ class PwmMouse(Mouse):
         elif self.right_wall:
             pos_error = 2 * right_err
         pos_error *= constants.KP_STEERING
-        print(pos_error, self._steering_enabled)
 
         if not self._steering_enabled:
             pos_error = 0
@@ -242,7 +240,6 @@ class PwmMouse(Mouse):
         if init_update:
             return
         sensor_data = self.updater.data
-        print(sensor_data)
         self.left_wall_distance = sensor_data['left']
         self.front_wall_distance = sensor_data['front']
         self.right_wall_distance = sensor_data['right']
