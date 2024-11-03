@@ -126,16 +126,6 @@ class PwmMouse(Mouse):
             if self.front_wall_distance < stop_threshold:
                 return
 
-    def move(self, dist: float, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
-        """
-        Move requested dist
-        :param dist: distance to go
-        :param stop_threshold: front sensor threshold to stop action
-        :return:
-        """
-        self.pos = 0
-        self._move(dist, stop_threshold)
-
     def wait_until_position(self, dist: float, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
         """
         move mouse without resetting the distance already reached
@@ -160,14 +150,7 @@ class PwmMouse(Mouse):
             super().forward()
             return
         self.pos = 0
-        self.pwm_left = constants.FORWARD_SPEED
-        self.pwm_right = constants.FORWARD_SPEED
-        while self.pos < distance:
-            self._move_motors()
-            self.update_sensor_data()
-            if self.front_wall_distance < constants.FRONT_REFERENCE:
-                self.stop()
-                break
+        self._move(distance, constants.FRONT_REFERENCE)
 
     def right(self, target_angle: int = constants.TURN_90):
         if self._sim:
