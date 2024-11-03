@@ -80,7 +80,7 @@ class DataUpdater(Thread):
     def run(self) -> None:
         while not self.done:
             self._update_data()
-            # time.sleep(0.1)
+            time.sleep(0.05)
 
 
 class PwmMouse(Mouse):
@@ -115,6 +115,8 @@ class PwmMouse(Mouse):
         """
         self.update_sensor_data()
         while self.pos < dist:
+            if self.front_wall_distance < stop_threshold:
+                return
             if self.speed < self.max_speed:
                 self.left_pwm = constants.FORWARD_SPEED + self.rot_error
                 self.right_pwm = constants.FORWARD_SPEED - self.rot_error
@@ -123,8 +125,6 @@ class PwmMouse(Mouse):
                 # time.sleep(0.1)
                 pass
             self.update_sensor_data()
-            if self.front_wall_distance < stop_threshold:
-                return
 
     def wait_until_position(self, dist: float, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
         """
