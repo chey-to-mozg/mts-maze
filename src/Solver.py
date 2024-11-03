@@ -100,6 +100,75 @@ class Solver:
         self._scan_position()
         return path_exists
 
+    def _check_pattern(self, path: list[str], path_idx: int, pattern: list[str]):
+        correct_pattern = True
+        for pattern_idx in range(len(pattern)):
+            _path_idx = path_idx + pattern_idx
+            if _path_idx < 0 or _path_idx >= len(path):
+                cur_path = 'F'
+            else:
+                cur_path = path[_path_idx]
+            if pattern[pattern_idx] != cur_path:
+                correct_pattern = False
+                break
+        return correct_pattern
+
+    def _make_diag_path(self, path: list[str]) -> list[str]:
+        new_path = []
+        if path[0] == 'R':
+            new_path.append('R')
+            path.pop(0)
+
+        pattern_data = {
+            'l_diag': (['F', 'L', 'F'], ['D']),
+            'r_diag': (['F', 'R', 'F'], ['D']),
+            'pre_turn_l_diag': (['F', 'F', 'L'], ['F_H', 'L_45']),
+            'pre_turn_r_diag': (['F', 'F', 'R'], ['F_H', 'R_45']),
+            'post_turn_l_diag': (['L', 'F', 'F'], ['L_45', 'F_H']),
+            'post_turn_r_diag': (['R', 'F', 'F'], ['R_45', 'F_H']),
+            'right_angle_l': (['L', 'F', 'L'], ['L']),
+            'right_angle_r': (['R', 'F', 'R'], ['R']),
+            'forward': (['F', 'F', 'F'], ['F']),
+        }
+
+        for path_idx in range(len(path)):
+            check_idx = path_idx - 1
+            for pattern, output in pattern_data.values():
+                if self._check_pattern(path, check_idx, pattern):
+                    if output is not None:
+                        new_path.extend(output)
+        return new_path
+
+    def _blind_run(self, diag_path: list[str]):
+        if constants.DEBUG_LOGGING:
+            print(diag_path)
+        for next_path in diag_path:
+            self._scan_position()
+
+            if next_path == "F":
+                self.mouse.forward()
+            elif next_path == "F_H":
+                self.mouse.forward(constants.HALF_CELL)
+            elif next_path == "D":
+                self.mouse.forward(constants.DIAG_CELL)
+            elif next_path == "R":
+                self.mouse.right()
+            elif next_path == "R_45":
+                self.mouse.right(constants.TURN_45)
+            elif next_path == "L":
+                self.mouse.left()
+            elif next_path == "L_45":
+                self.mouse.left(constants.TURN_45)
+
+        self._scan_position()
+
+    def diag_run(self):
+        self.maze.lock_maze()
+        self.maze.floodfill()
+        self.maze.find_path(self.maze.mouse_position)
+        diag_path = self._make_diag_path(self.maze.path)
+        self._blind_run(diag_path)
+
     def reset_position(self):
         """
         set mouse position inside this class to initial place
@@ -113,10 +182,6 @@ if __name__ == '__main__':
     solver.shortest()
     solver.maze.save_maze()
     input('Move robot to the start')
+    solver = Solver(sim=True, load_maze=True, calibrate_back_wall=False)
     solver.mouse.set_delay(0.5)
-    solver.reset_position()
-    solver.shortest()
-    input('Move robot to the start')
-    solver.calibrate_back_wall = False
-    solver.reset_position()
-    solver.shortest()
+    solver.diag_run()
