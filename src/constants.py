@@ -24,6 +24,15 @@ KP_STEERING = 0.4
 MAX_SPEED = 200
 PRE_TURN_SPEED = 100
 
+ENCODER_PULSES = 3.0  # 3 up pulses per one cycle (total 12 pulses for 2 channels for up and down events)
+GEAR_RATIO = 100.0  # numbers from documentation. In real life need to correct it somehow
+WHEEL_DIAMETER = 20
+
+ROTATION_BIAS = 0.0018  # to make robot go forward
+
+MM_PER_COUNT_LEFT = (1 - ROTATION_BIAS) * math.pi * WHEEL_DIAMETER / (ENCODER_PULSES * GEAR_RATIO)
+MM_PER_COUNT_RIGHT = (1 + ROTATION_BIAS) * math.pi * WHEEL_DIAMETER / (ENCODER_PULSES * GEAR_RATIO)
+
 LEFT_REFERENCE = 59
 RIGHT_REFERENCE = 49
 
