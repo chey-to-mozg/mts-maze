@@ -120,7 +120,7 @@ class PwmMouse(Mouse):
                 self.right_pwm = constants.FORWARD_SPEED - self.rot_error
                 self._move_motors()
             else:
-                #time.sleep(0.1)
+                # time.sleep(0.1)
                 pass
             self.update_sensor_data()
             if self.front_wall_distance < stop_threshold:
@@ -262,4 +262,3 @@ if __name__ == '__main__':
     mouse.update_sensor_data()
     print(mouse)
     mouse.updater.done = True
-
