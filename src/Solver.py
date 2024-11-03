@@ -135,8 +135,44 @@ class Solver:
             check_idx = path_idx - 1
             for pattern, output in pattern_data.values():
                 if self._check_pattern(path, check_idx, pattern):
-                    if output is not None:
-                        new_path.extend(output)
+                    new_path.extend(output)
+        return new_path
+
+    def _optimize_diag_path(self, path: list[str], add_calibrate_points=True) -> list[str]:
+        calibrate_path = []
+
+        if add_calibrate_points:
+            # Front calibration optimization
+            pattern_data = {
+                'calibration_point_l': (['F_H', 'L_45'], ['F_H', 'C', 'L_45']),
+                'calibration_point_r': (['F_H', 'R_45'], ['F_H', 'C', 'R_45']),
+            }
+
+            path_idx = 0
+            while path_idx < len(path):
+                for pattern, output in pattern_data.values():
+                    if self._check_pattern(path, path_idx, pattern):
+                        calibrate_path.extend(output)
+                        path_idx += len(pattern)
+                        break
+                else:
+                    calibrate_path.append(path[path_idx])
+                    path_idx += 1
+        else:
+            calibrate_path = path
+
+        new_path = []
+        path_idx = 0
+
+        # F_H optimization
+        while path_idx < len(calibrate_path):
+            if self._check_pattern(calibrate_path, path_idx, ['F_H', 'F_H']):
+                new_path.extend('F')
+                path_idx += 2
+            else:
+                new_path.append(calibrate_path[path_idx])
+                path_idx += 1
+
         return new_path
 
     def _blind_run(self, diag_path: list[str]):
@@ -159,6 +195,8 @@ class Solver:
                 self.mouse.left()
             elif next_path == "L_45":
                 self.mouse.left(constants.TURN_45)
+            elif next_path == "C":
+                self.mouse.forward_calibrate()
 
         self._scan_position()
 
