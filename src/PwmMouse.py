@@ -156,27 +156,23 @@ class PwmMouse(Mouse):
         if self._sim:
             super().right()
             return
-        self._steering_enabled = False
         self.reference_angle = self.reference_angle + target_angle
         self.pwm_left = constants.ROTATION_SPEED
         self.pwm_right = -constants.ROTATION_SPEED
         while self.angle < self.reference_angle - constants.ANGLE_OFFSET:
             self._move_motors()
             self.update_sensor_data()
-        self._steering_enabled = True
 
     def left(self, target_angle: int = constants.TURN_90):
         if self._sim:
             super().left()
             return
-        self._steering_enabled = False
         self.reference_angle = self.reference_angle - target_angle
         self.pwm_left = -constants.ROTATION_SPEED
         self.pwm_right = constants.ROTATION_SPEED
         while self.angle > self.reference_angle + constants.ANGLE_OFFSET:
             self._move_motors()
             self.update_sensor_data()
-        self._steering_enabled = True
 
     def around_in_place(self):
         """
@@ -202,8 +198,7 @@ class PwmMouse(Mouse):
             pos_error = 2 * right_err
         pos_error *= constants.KP_STEERING
 
-        if not self._steering_enabled:
-            pos_error = 0
+        pos_error = 0
 
         self.rot_error = ang_error - pos_error
 

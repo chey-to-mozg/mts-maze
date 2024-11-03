@@ -38,7 +38,6 @@ class Mouse:
         self.max_speed = constants.MAX_SPEED
 
         self.rot_error = 0
-        self._steering_enabled = True
 
         self.update_sensor_data(init_update=True)
 
