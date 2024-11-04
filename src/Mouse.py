@@ -55,7 +55,7 @@ class Mouse:
         self._steering_enabled = True
 
         self.wallUpdateTimer = WallUpdateTimer()
-        self.wallUpdateTimer.run()
+        self.wallUpdateTimer.start()
 
         self.update_sensor_data(init_update=True)
 
