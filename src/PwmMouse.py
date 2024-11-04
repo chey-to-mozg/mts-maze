@@ -54,11 +54,11 @@ class DataUpdater(Thread):
 
         cur_angle = self.data['angle']
 
-        if angle < -90:
-            if self.prev_angle > 90:
+        if angle < 90:
+            if self.prev_angle > 270:
                 self.prev_angle -= 360
-        if angle > 90:
-            if self.prev_angle < -90:
+        if angle > 270:
+            if self.prev_angle < 90:
                 self.prev_angle += 360
         diff = angle - self.prev_angle
         cur_angle += diff
@@ -80,7 +80,7 @@ class DataUpdater(Thread):
     def run(self) -> None:
         while not self.done:
             self._update_data()
-            time.sleep(0.05)
+            time.sleep(0.02)
 
 
 class PwmMouse(Mouse):
@@ -105,7 +105,7 @@ class PwmMouse(Mouse):
         body = {'id': constants.MOUSE_ID, 'l': pwm_left, 'r': pwm_right, 'l_time': m_time, 'r_time': m_time}
         requests.put(f"{self._api_route}/motor", json=body)
         # TODO check request duration and calculate actual delay
-        # time.sleep(m_time)
+        time.sleep(m_time / 1000)
 
     def _move(self, dist: float, stop_threshold: float):
         """
@@ -159,6 +159,7 @@ class PwmMouse(Mouse):
         self.reference_angle = self.reference_angle + target_angle
         self.pwm_left = constants.ROTATION_SPEED
         self.pwm_right = -constants.ROTATION_SPEED
+        self.update_sensor_data()
         while self.angle < self.reference_angle - constants.ANGLE_OFFSET:
             self._move_motors()
             self.update_sensor_data()
@@ -170,6 +171,7 @@ class PwmMouse(Mouse):
         self.reference_angle = self.reference_angle - target_angle
         self.pwm_left = -constants.ROTATION_SPEED
         self.pwm_right = constants.ROTATION_SPEED
+        self.update_sensor_data()
         while self.angle > self.reference_angle + constants.ANGLE_OFFSET:
             self._move_motors()
             self.update_sensor_data()
@@ -232,6 +234,7 @@ class PwmMouse(Mouse):
         enc_right = sensor_data['enc_right']
         self._update_movement(enc_left, enc_right)
         self._calc_errors()
+        print(self)
 
     def __str__(self):
         return (
@@ -246,6 +249,7 @@ class PwmMouse(Mouse):
 
 
 if __name__ == '__main__':
+    PwmMouse().stop()
     mouse = PwmMouse(sim=True)
     print(mouse)
     mouse.update_sensor_data()

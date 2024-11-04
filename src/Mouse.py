@@ -7,10 +7,10 @@ from src import constants
 
 
 class Sensors(str, Enum):
-    left = '2'
-    left_45 = '6'
+    left = '6'
+    left_45 = '5'
     up = '4'
-    right = '5'
+    right = '2'
     right_45 = '3'
     down = '1'
 
@@ -115,6 +115,7 @@ class Mouse:
         read sensor data and update wall related data
         """
         sensor_data = self.get_sensors()
+        print(sensor_data)
         if self._sim:
             self.left_wall_distance = sensor_data['left_side_distance']
             self.front_wall_distance = sensor_data['front_distance']
@@ -273,8 +274,8 @@ def check_to_center_calibration():
 
 
 if __name__ == "__main__":
-    # print_sensor_data()
+    print_sensor_data()
     # check_response_time()
     # check_turns()
     # check_45_turn()
-    check_to_center_calibration()
+    # check_to_center_calibration()
