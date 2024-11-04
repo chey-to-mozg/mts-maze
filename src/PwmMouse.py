@@ -1,22 +1,28 @@
 import time
-from threading import Thread
+from multiprocessing import Process
 
 import requests
 
 from src import constants
 from src.Mouse import Mouse, Sensors
 
+_sensor_data = {}
 
-class DataUpdater(Thread):
-    def __init__(self, sim: bool = False):
+
+def _get_angle():
+    return _sensor_data.get('angle', 0)
+
+
+class DataUpdater(Process):
+    def __init__(self, update_delay: float, sim: bool = False):
         super().__init__()
         self._sim = sim
+        self.update_delay = update_delay
         self._api_route = "http://127.0.0.1:8801/api/v1" if sim else constants.MOUSE_IP
         self.angle_error = 0
         self.prev_angle = 0
         self.enc_left = 0
         self.enc_right = 0
-        self.data = {'angle': 0}
         self.done = False
         self._init_angle()
         self._update_data()
@@ -52,7 +58,7 @@ class DataUpdater(Thread):
             imu = sensor_data['imu']
             angle = imu['yaw'] - self.angle_error
 
-        cur_angle = self.data['angle']
+        cur_angle = _get_angle()
 
         if angle < 90:
             if self.prev_angle > 270:
@@ -65,47 +71,93 @@ class DataUpdater(Thread):
         self.prev_angle = angle
 
         # TODO add encoders update
-        self.enc_left += 1
-        self.enc_right += 1
+        self.enc_left = 1
+        self.enc_right = 1
 
-        self.data = {
-            'left': left_wall_distance,
-            'front': front_wall_distance,
-            'right': right_wall_distance,
-            'angle': cur_angle,
-            'enc_left': self.enc_left,
-            'enc_right': self.enc_right,
-        }
+        _sensor_data['left'] = left_wall_distance
+        _sensor_data['front'] = front_wall_distance
+        _sensor_data['right'] = right_wall_distance
+        _sensor_data['angle'] = cur_angle
+        _sensor_data['enc_left'] = self.enc_left
+        _sensor_data['enc_right'] = self.enc_right
 
     def run(self) -> None:
         while not self.done:
             self._update_data()
-            time.sleep(0.02)
+            time.sleep(self.update_delay)
 
 
-class PwmMouse(Mouse):
-    def __init__(self, sim: bool = False):
-        super().__init__(sim)
-        self.enc_left_prev = 0
-        self.enc_right_prev = 0
-        # add pwm variables for logging
+class PwmController(Process):
+    def __init__(self):
+        super().__init__()
         self.pwm_left = 0
         self.pwm_right = 0
-        self.prev_update = time.time()
-        self.updater = DataUpdater(sim)
-        self.updater.start()
+        self.done = False
+        self._run_pwm = False
+
+    def start_pwm(self, pwm_left: float | int, pwm_right: float | int):
+        self._run_pwm = False
+        self.pwm_left = int(pwm_left)
+        self.pwm_right = int(pwm_right)
+        self._run_pwm = True
+
+    def stop_pwm(self):
+        self._run_pwm = False
+        pwm_left = -5
+        pwm_right = -5
+        # need to send pulse in another direction
+        if self.pwm_right < 0:
+            pwm_right *= -1
+        if self.pwm_left < 0:
+            pwm_left *= -1
+        self.pwm_left = pwm_left
+        self.pwm_right = pwm_right
+        self._run_pwm = True
+        time.sleep(0.2)
+        self._run_pwm = False
 
     def _move_motors(self, m_time: int = 100):
         """
         run motors with requested pwm and time
         :param m_time:    execution time
         """
-        pwm_left = int(self.pwm_left)
-        pwm_right = int(self.pwm_right)
-        body = {'id': constants.MOUSE_ID, 'l': pwm_left, 'r': pwm_right, 'l_time': m_time, 'r_time': m_time}
-        requests.put(f"{self._api_route}/motor", json=body)
-        # TODO check request duration and calculate actual delay
-        time.sleep(m_time / 1000)
+        start = time.time()
+        body = {'id': constants.MOUSE_ID, 'l': self.pwm_left, 'r': self.pwm_right, 'l_time': m_time, 'r_time': m_time}
+        requests.put(f"{constants.MOUSE_IP}/motor", json=body)
+        diff = time.time() - start  # seconds
+        sleep_time = diff - m_time / 1000
+        print(sleep_time)
+        time.sleep(sleep_time)
+
+    def run(self):
+        while not self.done:
+            if self._run_pwm:
+                self._move_motors()
+            else:
+                print('no pwm')
+                time.sleep(0.1)
+
+
+class PwmMouse(Mouse):
+    def __init__(self, update_delay: float, sim: bool = False, calibrate_on_start: bool = False):
+        super().__init__(sim)
+        self.enc_left_prev = 0
+        self.enc_right_prev = 0
+        # add pwm variables for logging
+        self.pwm_left = 0
+        self.pwm_right = 0
+        if calibrate_on_start:
+            self.calibrate_back_wall()
+        self.updater = DataUpdater(update_delay=update_delay, sim=sim)
+        self.updater.start()
+        self.pwm = PwmController()
+        self.pwm.start()
+        self.prev_update = time.time()
+
+    def _start_pwm(self, pwm_left: float | int, pwm_right: float | int):
+        self.pwm_left = pwm_left
+        self.pwm_right = pwm_right
+        self.pwm.start_pwm(pwm_left, pwm_right)
 
     def _move(self, dist: float, stop_threshold: float):
         """
@@ -114,17 +166,14 @@ class PwmMouse(Mouse):
         :param stop_threshold: front sensor threshold to stop action
         """
         self.update_sensor_data()
+        left_pwm = constants.FORWARD_SPEED + self.rot_error
+        right_pwm = constants.FORWARD_SPEED - self.rot_error
+        self._start_pwm(left_pwm, right_pwm)
         while self.pos < dist:
-            if self.front_wall_distance < stop_threshold:
-                return
-            if self.speed < self.max_speed:
-                self.left_pwm = constants.FORWARD_SPEED + self.rot_error
-                self.right_pwm = constants.FORWARD_SPEED - self.rot_error
-                self._move_motors()
-            else:
-                # time.sleep(0.1)
-                pass
             self.update_sensor_data()
+            if self.front_wall_distance < stop_threshold:
+                break
+        self.stop()
 
     def wait_until_position(self, dist: float, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
         """
@@ -138,17 +187,13 @@ class PwmMouse(Mouse):
         """
         call for stop motors until speed is zero
         """
-        self.update_sensor_data()
-        self.pwm_left = -constants.FORWARD_SPEED
-        self.pwm_right = -constants.FORWARD_SPEED
-        while self.speed > 5:
-            self._move_motors()
-            self.update_sensor_data()
+        self.pwm.stop_pwm()
 
     def forward(self, distance: int = constants.CELL):
         if self._sim:
             super().forward()
             return
+
         self.pos = 0
         self._move(distance, constants.FRONT_REFERENCE)
 
@@ -156,25 +201,29 @@ class PwmMouse(Mouse):
         if self._sim:
             super().right()
             return
+
         self.reference_angle = self.reference_angle + target_angle
-        self.pwm_left = constants.ROTATION_SPEED
-        self.pwm_right = -constants.ROTATION_SPEED
-        self.update_sensor_data()
-        while self.angle < self.reference_angle - constants.ANGLE_OFFSET:
-            self._move_motors()
-            self.update_sensor_data()
+        target = self.reference_angle - constants.ANGLE_OFFSET
+        self._start_pwm(pwm_left=constants.ROTATION_SPEED, pwm_right=-constants.ROTATION_SPEED)
+
+        while angle := _get_angle() < target:
+            print(f'{angle} | {target}')
+            # self.update_sensor_data()
+        self.stop()
 
     def left(self, target_angle: int = constants.TURN_90):
         if self._sim:
             super().left()
             return
+
         self.reference_angle = self.reference_angle - target_angle
-        self.pwm_left = -constants.ROTATION_SPEED
-        self.pwm_right = constants.ROTATION_SPEED
-        self.update_sensor_data()
-        while self.angle > self.reference_angle + constants.ANGLE_OFFSET:
-            self._move_motors()
-            self.update_sensor_data()
+        target = self.reference_angle + constants.ANGLE_OFFSET
+        self._start_pwm(pwm_left=-constants.ROTATION_SPEED, pwm_right=constants.ROTATION_SPEED)
+
+        while angle := _get_angle() > target:
+            print(f'{angle} | {target}')
+            # self.update_sensor_data()
+        self.stop()
 
     def around_in_place(self):
         """
@@ -187,7 +236,7 @@ class PwmMouse(Mouse):
         """
         Calculate wall and gyro errors
         """
-        ang_error = (self.reference_angle - self.angle) * constants.KP_ROT
+        ang_error = (self.reference_angle - _get_angle()) * constants.KP_ROT
 
         pos_error = 0
         left_err = self.left_wall_distance - constants.LEFT_REFERENCE
@@ -204,7 +253,9 @@ class PwmMouse(Mouse):
 
         self.rot_error = ang_error - pos_error
 
-    def _update_movement(self, enc_left: int, enc_right: int):
+    def _update_movement(self):
+        enc_left = _sensor_data.get('enc_left', 0)
+        enc_right = _sensor_data.get('enc_right', 0)
         diff_left = enc_left - self.enc_left_prev
         diff_right = enc_right - self.enc_right_prev
         distance = (diff_left * constants.MM_PER_COUNT_LEFT + diff_right * constants.MM_PER_COUNT_RIGHT) / 2
@@ -219,20 +270,15 @@ class PwmMouse(Mouse):
     def update_sensor_data(self, init_update: bool = False):
         if init_update:
             return
-        sensor_data = self.updater.data
-        self.left_wall_distance = sensor_data['left']
-        self.front_wall_distance = sensor_data['front']
-        self.right_wall_distance = sensor_data['right']
+        self.left_wall_distance = _sensor_data.get('left', 0)
+        self.front_wall_distance = _sensor_data.get('front', 0)
+        self.right_wall_distance = _sensor_data.get('right', 0)
 
         self.left_wall = self.left_wall_distance < constants.WALL_THRESHOLD
         self.front_wall = self.front_wall_distance < constants.FRONT_WALL_THRESHOLD
         self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
 
-        self.angle = sensor_data['angle']
-
-        enc_left = sensor_data['enc_left']
-        enc_right = sensor_data['enc_right']
-        self._update_movement(enc_left, enc_right)
+        self._update_movement()
         self._calc_errors()
         print(self)
 
@@ -241,23 +287,57 @@ class PwmMouse(Mouse):
             f"< {self.left_wall_distance} {self.left_wall} \n"
             f"^ {self.front_wall_distance} {self.front_wall} \n"
             f"> {self.right_wall_distance} {self.right_wall} \n"
-            f"angle cur|ref: {self.angle} | {self.reference_angle} \n"
+            f"angle cur|ref: {_get_angle()} | {self.reference_angle} \n"
             f"position: {self.pos} \n"
             f"pwm left: {self.pwm_left} pwm_right: {self.pwm_right} speed: {round(self.speed)} mm / sec \n"
             f"rot error: {round(self.rot_error)}"
         )
 
 
-if __name__ == '__main__':
-    PwmMouse().stop()
-    mouse = PwmMouse(sim=True)
-    print(mouse)
-    mouse.update_sensor_data()
-    print(mouse)
+def check_turns():
+    mouse = PwmMouse(update_delay=0.1)
     mouse.right()
-    mouse.update_sensor_data()
+    # check inertia
+    time.sleep(0.5)
     print(mouse)
+
+    mouse.right()
+    time.sleep(0.5)
+    print(mouse)
+
+    mouse.left(180)
+    time.sleep(0.5)
+    print(mouse)
+
+    mouse.left()
+    time.sleep(0.5)
+    print(mouse)
+
+    mouse.left()
+    time.sleep(0.5)
+    print(mouse)
+
+    mouse.right(180)
+    time.sleep(0.5)
+    print(mouse)
+
+
+def check_forward():
+    mouse = PwmMouse(update_delay=0.1)
+
     mouse.forward()
-    mouse.update_sensor_data()
-    print(mouse)
-    mouse.updater.done = True
+    # check inertia
+    print(mouse.get_sensors())
+    time.sleep(0.5)
+    print(mouse.get_sensors())
+
+    mouse.forward(constants.CELL * 2)
+    print(mouse.get_sensors())
+    time.sleep(0.5)
+    print(mouse.get_sensors())
+
+
+if __name__ == '__main__':
+    check_turns()
+    # check_forward()
+

@@ -17,7 +17,6 @@ class Sensors(str, Enum):
 
 class Mouse:
     def __init__(self, sim: bool = False):
-        super().__init__()
         self._token = ""
         self._api_route = "http://127.0.0.1:8801/api/v1" if sim else constants.MOUSE_IP
         self._sim = sim
@@ -115,7 +114,6 @@ class Mouse:
         read sensor data and update wall related data
         """
         sensor_data = self.get_sensors()
-        print(sensor_data)
         if self._sim:
             self.left_wall_distance = sensor_data['left_side_distance']
             self.front_wall_distance = sensor_data['front_distance']
@@ -143,9 +141,6 @@ class Mouse:
             if init_update:
                 self.angle_error = self.angle
                 self.angle = 0
-        # self._update_movement()
-        #
-        # self._calc_errors()
 
     def __str__(self):
         return (
@@ -273,9 +268,21 @@ def check_to_center_calibration():
     print(mouse)
 
 
+def check_encoders_per_cell():
+    mouse = Mouse()
+
+    print(mouse.get_sensors())
+    mouse.forward()
+    print(mouse.get_sensors())
+
+    mouse.forward(constants.CELL * 2)
+    print(mouse.get_sensors())
+
+
 if __name__ == "__main__":
-    print_sensor_data()
+    # print_sensor_data()
     # check_response_time()
     # check_turns()
     # check_45_turn()
     # check_to_center_calibration()
+    check_encoders_per_cell()
