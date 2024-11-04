@@ -1,5 +1,6 @@
 import math
 import time
+from threading import Thread
 from enum import Enum
 
 import requests
@@ -14,6 +15,18 @@ class Sensors(str, Enum):
     right = '5'
     right_45 = '3'
     down = '1'
+
+
+class WallUpdateTimer(Thread):
+    def __init__(self):
+        super().__init__()
+        self.done = False
+        self.wall_can_be_changed = True
+
+    def run(self) -> None:
+        while not self.done:
+            self.wall_can_be_changed = True
+            time.sleep(constants.WALL_UPDATE_TIME)
 
 
 class Mouse:
@@ -40,6 +53,9 @@ class Mouse:
 
         self.rot_error = 0
         self._steering_enabled = True
+
+        self.wallUpdateTimer = WallUpdateTimer()
+        self.wallUpdateTimer.start()
 
         self.update_sensor_data(init_update=True)
 
@@ -200,6 +216,7 @@ class Mouse:
         #         'roll': -1, 'pitch': 0, 'yaw': 121
         #     }
         # }
+        self.wallUpdateTimer.wall_can_be_changed = False
         if self._sim:
             return requests.get(f'{self._api_route}/robot-cells/sensor-data?token={self._token}').json()
         else:

@@ -40,6 +40,7 @@ CELL = 150
 HALF_CELL = CELL / 2
 DIAG_CELL = int(math.sqrt(HALF_CELL**2 + HALF_CELL**2))
 TO_CENTER = HALF_CELL - 20
+WALL_UPDATE_TIME = 5  # sec
 
 # all wall related information is stored in one uint8_t array, first 4 bits to mark walls visited (1 bit for 1 wall)
 # last 4 bits for actual wall data (1 bit for 1 wall)
