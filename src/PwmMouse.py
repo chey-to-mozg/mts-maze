@@ -152,7 +152,11 @@ class PwmController(Process):
         """
         start = time.time()
         body = {
-            'id': constants.MOUSE_ID, 'l': self.pwm_left.value, 'r': self.pwm_right.value, 'l_time': m_time, 'r_time': m_time,
+            'id': constants.MOUSE_ID,
+            'l': self.pwm_left.value,
+            'r': self.pwm_right.value,
+            'l_time': m_time,
+            'r_time': m_time,
         }
         requests.put(f"{constants.MOUSE_IP}/motor", json=body)
         diff = time.time() - start  # seconds
@@ -393,4 +397,3 @@ if __name__ == '__main__':
     # check_turns()
     # check_forward()
     check_pwm()
-
