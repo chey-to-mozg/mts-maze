@@ -12,7 +12,7 @@ class Solver:
     }
 
     def __init__(self, sim: bool = False, load_maze: bool = False, calibrate_back_wall: bool = False):
-        self.mouse = Mouse(sim)
+        self.mouse = Mouse(sim, calibrate_back_wall=calibrate_back_wall)
         self.maze = Maze(load_maze)
         self.calibrate_back_wall = calibrate_back_wall
 
@@ -143,8 +143,6 @@ class Solver:
         if constants.DEBUG_LOGGING:
             print(diag_path)
         for next_path in diag_path:
-            self._scan_position()
-
             if next_path == "F":
                 self.mouse.forward()
             elif next_path == "F_H":
@@ -160,14 +158,18 @@ class Solver:
             elif next_path == "L_45":
                 self.mouse.left(constants.TURN_45)
 
-        self._scan_position()
-
     def diag_run(self):
         self.maze.lock_maze()
         self.maze.floodfill()
         self.maze.find_path(self.maze.mouse_position)
         diag_path = self._make_diag_path(self.maze.path)
         self._blind_run(diag_path)
+
+    def fast_run(self):
+        self.maze.lock_maze()
+        self.maze.floodfill()
+        self.maze.find_path(self.maze.mouse_position)
+        self._blind_run(self.maze.path)
 
     def reset_position(self):
         """
@@ -178,10 +180,10 @@ class Solver:
 
 
 if __name__ == '__main__':
-    solver = Solver(sim=True, load_maze=False, calibrate_back_wall=True)
+    solver = Solver(sim=True, load_maze=False, calibrate_back_wall=False)
     solver.shortest()
     solver.maze.save_maze()
     input('Move robot to the start')
     solver = Solver(sim=True, load_maze=True, calibrate_back_wall=False)
     solver.mouse.set_delay(0.5)
-    solver.diag_run()
+    solver.fast_run()
