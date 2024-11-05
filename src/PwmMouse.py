@@ -160,8 +160,7 @@ class PwmController(Process):
         }
         requests.put(f"{constants.MOUSE_IP}/motor", json=body)
         diff = time.time() - start  # seconds
-        sleep_time = diff - m_time / 1000
-        print(sleep_time)
+        sleep_time = m_time / 1000 - diff
         time.sleep(sleep_time)
 
     def break_pwm(self):
@@ -173,7 +172,7 @@ class PwmController(Process):
                 self._move_motors()
             else:
                 print('no pwm')
-                time.sleep(0.1)
+                time.sleep(0.01)
 
 
 class PwmMouse(Mouse):
@@ -226,6 +225,9 @@ class PwmMouse(Mouse):
         call for stop motors until speed is zero
         """
         self.pwm.stop_pwm()
+
+    def soft_stop(self):
+        self.pwm.start_pwm(0, 0)
 
     def forward(self, distance: int = constants.CELL):
         if self._sim:
@@ -337,7 +339,7 @@ class PwmMouse(Mouse):
 
 
 def check_turns():
-    mouse = PwmMouse(update_delay=0.1, sim=True)
+    mouse = PwmMouse(update_delay=0.04, sim=True)
     mouse.right()
     # check inertia
     time.sleep(0.5)
@@ -369,7 +371,7 @@ def check_turns():
 
 
 def check_forward():
-    mouse = PwmMouse(update_delay=0.1)
+    mouse = PwmMouse(update_delay=0.04)
 
     mouse.forward()
     # check inertia
