@@ -9,20 +9,29 @@ class Directions(IntEnum):
     left = 3
 
 
-MOUSE_ID = "7536AF961D784A53"
-MOUSE_IP = "http://192.168.68.202"
+MOUSE_ID = "454DAF9629366853"
+MOUSE_IP = "http://192.168.11.212"
 DEBUG_LOGGING = True
 
 # Mouse related
 SENSING_OFFSET = 40
-ROTATION_SPEED = 220
+ROTATION_SPEED = 100
 FORWARD_SPEED = 70
 FRONT_REFERENCE = 70
-ANGLE_OFFSET = 6
+ANGLE_OFFSET = 5
 KP_ROT = 4.0
 KP_STEERING = 0.4
 MAX_SPEED = 200
 PRE_TURN_SPEED = 100
+
+ENCODER_PULSES = 3.0  # 3 up pulses per one cycle (total 12 pulses for 2 channels for up and down events)
+GEAR_RATIO = 100.0  # numbers from documentation. In real life need to correct it somehow
+WHEEL_DIAMETER = 20
+
+ROTATION_BIAS = 0.0018  # to make robot go forward
+
+MM_PER_COUNT_LEFT = (1 - ROTATION_BIAS) * math.pi * WHEEL_DIAMETER / (ENCODER_PULSES * GEAR_RATIO)
+MM_PER_COUNT_RIGHT = (1 + ROTATION_BIAS) * math.pi * WHEEL_DIAMETER / (ENCODER_PULSES * GEAR_RATIO)
 
 LEFT_REFERENCE = 59
 RIGHT_REFERENCE = 49
