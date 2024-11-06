@@ -34,6 +34,7 @@ class Mouse:
         self.angle = 0
         self.reference_angle = 0
         self.angle_error = 0
+        self.prev_angle = 0
         self.pos = 0
         self.speed = 0
         self.max_speed = constants.MAX_SPEED
@@ -108,25 +109,20 @@ class Mouse:
         # TODO check request duration and calculate actual delay
         # time.sleep(m_time)
 
-    def _move(self, dist: float, stop_threshold: float):
+    def _move(self, dist: int, stop_threshold: float):
         """
         go forward until dist reached
         :param dist: distance to go
         :param stop_threshold: front sensor threshold to stop action
         """
-        self.update_sensor_data()
-        while self.pos < dist:
-            if self.speed < self.max_speed:
-                left_pwm = constants.FORWARD_SPEED + self.rot_error
-                right_pwm = constants.FORWARD_SPEED - self.rot_error
-                self._move_motors(left_pwm, right_pwm)
-            else:
-                time.sleep(0.1)
-            self.update_sensor_data()
-            if self.front_wall_distance < stop_threshold:
-                return
+        pwm = constants.FORWARD_SPEED
+        if dist < 0:
+            pwm *= -1
+            dist *= -1
 
-    def move(self, dist: float, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
+        self._move_motors(pwm, pwm, dist)
+
+    def move(self, dist: int, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
         """
         Move requested dist
         :param dist: distance to go
@@ -161,7 +157,7 @@ class Mouse:
         self.reference_angle += 90
         self.update_sensor_data()
         while self.angle < self.reference_angle - constants.ANGLE_OFFSET:
-            self._move_motors(constants.ROTATION_SPEED, -constants.ROTATION_SPEED)
+            self._move_motors(constants.ROTATION_SPEED, -constants.ROTATION_SPEED, m_time=50)
             self.update_sensor_data()
 
         self._steering_enabled = True
@@ -174,7 +170,7 @@ class Mouse:
         self.reference_angle -= 90
         self.update_sensor_data()
         while self.angle > self.reference_angle + constants.ANGLE_OFFSET:
-            self._move_motors(-constants.ROTATION_SPEED, constants.ROTATION_SPEED)
+            self._move_motors(-constants.ROTATION_SPEED, constants.ROTATION_SPEED, m_time=50)
             self.update_sensor_data()
 
         self._steering_enabled = True
@@ -270,13 +266,22 @@ class Mouse:
             self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
 
             imu = sensor_data['imu']
-            self.angle = imu["yaw"] - self.angle_error
-            if self.angle < 0:
-                self.angle += 360
+            angle = imu["yaw"] - self.angle_error
 
             if init_update:
-                self.angle_error = self.angle
+                self.angle_error = angle
                 self.angle = 0
+
+            if angle <= 90:
+                if self.prev_angle >= 270:
+                    self.prev_angle -= 360
+            if angle >= 270:
+                if self.prev_angle <= 90:
+                    self.prev_angle += 360
+
+            diff = angle - self.prev_angle
+            self.prev_angle = angle
+            self.angle += diff
         # self._update_movement()
         #
         # self._calc_errors()
