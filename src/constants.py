@@ -24,6 +24,9 @@ KP_STEERING = 0.4
 MAX_SPEED = 200
 PRE_TURN_SPEED = 100
 
+LEFT_ENCODER_TO_MM = 0.1
+RIGHT_ENCODER_TO_MM = 0.1
+
 LEFT_REFERENCE = 59
 RIGHT_REFERENCE = 49
 
@@ -36,10 +39,10 @@ TURN_90 = 90
 TURN_45 = 45
 
 # Maze related
-CELL = 150
+CELL = 180
 HALF_CELL = CELL / 2
 DIAG_CELL = int(math.sqrt(HALF_CELL**2 + HALF_CELL**2))
-TO_CENTER = HALF_CELL - 20
+TO_CENTER = HALF_CELL - 50
 
 # all wall related information is stored in one uint8_t array, first 4 bits to mark walls visited (1 bit for 1 wall)
 # last 4 bits for actual wall data (1 bit for 1 wall)

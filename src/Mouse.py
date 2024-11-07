@@ -1,19 +1,19 @@
-import math
 import time
 from enum import Enum
 
 import requests
 
 from src import constants
+from src.utils import debug
 
 
 class Sensors(str, Enum):
-    left = '2'
-    left_45 = '6'
-    up = '4'
-    right = '5'
-    right_45 = '3'
-    down = '1'
+    left = 'left'
+    left_45 = 'left45'
+    up = 'forward'
+    right = 'right'
+    right_45 = 'right45'
+    down = 'backward'
 
 
 class Mouse:
@@ -29,7 +29,6 @@ class Mouse:
         self.left_wall = False
         self.front_wall = False
         self.right_wall = False
-        self._request_delay = 1  # secs
 
         self.angle = 0
         self.reference_angle = 0
@@ -40,62 +39,13 @@ class Mouse:
         self.max_speed = constants.MAX_SPEED
 
         self.rot_error = 0
-        self._steering_enabled = True
+        self._steering_enabled = False
 
-        self.update_sensor_data(init_update=True)
-
-    # api control
-    def _make_action(self, action: str, distance: int):
-        """
-        basic movement control
-        :param action: string from corresponding api call (forward | left | right)
-        :param distance: distancve for forward and angle for left\right
-        """
-        if self._sim:
-            requests.post(f'{self._api_route}/robot-cells/{action}?token={self._token}')
-            time.sleep(0.1)
-        else:
-            body = {'direction': action, 'id': constants.MOUSE_ID, 'len': distance}
-            requests.put(f"{self._api_route}/move", json=body)
-            time.sleep(self._request_delay)
-
-    def forward(self, distance: int = constants.CELL):
-        self._make_action("forward", distance)
-
-    def right(self, angle: int = constants.TURN_90):
-        # set reference to be always "right" number i.e. 0, 45, 90, 135 e.t.c
-        self.reference_angle = (self.reference_angle + angle) % 360
-        # calculate diff between current angle and desired. Add offset to calibrate angle
-        diff = (self.reference_angle - self.angle + constants.ANGLE_OFFSET) % 360
-        self._make_action("right", diff)
-
-    def left(self, angle: int = constants.TURN_90):
-        # set reference to be always "right" number i.e. 0, 45, 90, 135 e.t.c
-        self.reference_angle = (self.reference_angle - angle) % 360
-        # calculate diff between current angle and desired. Add offset to calibrate angle
-        diff = (self.angle - self.reference_angle + constants.ANGLE_OFFSET) % 360
-        self._make_action("left", diff)
-
-    def backward(self, distance: int = 100):
-        self._make_action("backward", distance)
-
-    def calibrate_back_wall(self):
-        if self._sim:
-            print('Calibrate back wall')
-            return
         self.backward()
-        self.forward(distance=constants.TO_CENTER)
+        self.update_sensor_data(init_update=True)
+        self.forward(constants.TO_CENTER)
 
-    def around(self):
-        self.left()
-        self.left()
-
-    def set_delay(self, delay: float):
-        self._request_delay = delay
-
-    # manual control # move to separate class?
-
-    def _move_motors(self, pwm_left: int | float, pwm_right: int | float, m_time: int = 100):
+    def _move_motors(self, pwm_left: int | float, pwm_right: int | float, m_time: int = 50):
         """
         run motors with requested pwm and time
         :param pwm_left:  value for left motor
@@ -104,83 +54,103 @@ class Mouse:
         """
         pwm_left = int(pwm_left)
         pwm_right = int(pwm_right)
-        body = {'id': constants.MOUSE_ID, 'l': pwm_left, 'r': pwm_right, 'l_time': m_time, 'r_time': m_time}
+        body = {
+            'id': constants.MOUSE_ID,
+            'l': pwm_left,
+            'r': pwm_right,
+            'l_time': m_time,
+            'r_time': m_time,
+        }
         requests.put(f"{self._api_route}/motor", json=body)
         # TODO check request duration and calculate actual delay
         # time.sleep(m_time)
 
-    def _move(self, dist: int, stop_threshold: float):
+    def _move(self, distance: int, stop_threshold: float):
         """
         go forward until dist reached
-        :param dist: distance to go
+        :param distance: distance to go
         :param stop_threshold: front sensor threshold to stop action
         """
         pwm = constants.FORWARD_SPEED
-        if dist < 0:
-            pwm *= -1
-            dist *= -1
+        self.update_sensor_data()
+        debug(f'forward {self.pos} -> {distance}')
+        while self.pos < distance:
+            pwm_left = pwm + self.rot_error
+            pwm_right = pwm - self.rot_error
+            debug(f'{pwm_left} {pwm_right}')
+            self._move_motors(pwm_left, pwm_right)
+            self.update_sensor_data()
+            # TODO add front wall check
 
-        self._move_motors(pwm, pwm, dist)
-
-    def move(self, dist: int, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
+    def forward(self, distance: int = constants.CELL, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
         """
         Move requested dist
-        :param dist: distance to go
+        :param distance: distance to go
         :param stop_threshold: front sensor threshold to stop action
         :return:
         """
         self.pos = 0
-        self._move(dist, stop_threshold)
+        self._move(distance, stop_threshold)
 
-    def wait_until_position(self, dist: float, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
+    def backward(self, distance: int = 100):
+        self.pos = 0
+        pwm = constants.FORWARD_SPEED
+        while abs(self.pos) < distance:  # check encoders sign!
+            self._move_motors(-pwm, -pwm)
+            self.update_sensor_data()
+
+    def calibrate_back_wall(self):
+        if self._sim:
+            print('Calibrate back wall')
+            return
+        self.backward()
+        self.forward(distance=constants.TO_CENTER)
+
+    def wait_until_position(self, distance: int, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
         """
         move mouse without resetting the distance already reached
-        :param dist: distance to wait for
+        :param distance: distance to wait for
         :param stop_threshold: front sensor threshold to stop action
         """
-        self._move(dist, stop_threshold)
+        self._move(distance, stop_threshold)
 
     def stop(self):
         """
         call for stop motors until speed is zero
         """
-        self.update_sensor_data()
-        while self.speed > 5:
-            self._move_motors(-constants.FORWARD_SPEED, -constants.FORWARD_SPEED)
-            self.update_sensor_data()
+        self._move_motors(0, 0)
 
-    def right_in_place(self):
+    def right(self, angle: int = constants.TURN_90):
         """
         turn mouse in place right using gyro
         """
-        self._steering_enabled = False
-        self.reference_angle += 90
+        self.reference_angle += angle
         self.update_sensor_data()
+        debug(f'right {self.angle} -> {self.reference_angle}')
         while self.angle < self.reference_angle - constants.ANGLE_OFFSET:
-            self._move_motors(constants.ROTATION_SPEED, -constants.ROTATION_SPEED, m_time=50)
+            angle_diff = self.reference_angle - self.angle
+            speed = constants.ROTATION_SPEED + angle_diff
+            debug(speed)
+            self._move_motors(speed, -speed)
             self.update_sensor_data()
 
-        self._steering_enabled = True
-
-    def left_in_place(self):
+    def left(self, angle: int = constants.TURN_90):
         """
         turn mouse in place left using gyro
         """
-        self._steering_enabled = False
-        self.reference_angle -= 90
+        self.reference_angle -= angle
         self.update_sensor_data()
+        debug(f'left {self.angle} -> {self.reference_angle}')
         while self.angle > self.reference_angle + constants.ANGLE_OFFSET:
-            self._move_motors(-constants.ROTATION_SPEED, constants.ROTATION_SPEED, m_time=50)
+            angle_diff = self.angle - self.reference_angle
+            speed = constants.ROTATION_SPEED + angle_diff
+            debug(speed)
+            self._move_motors(-speed, speed)
             self.update_sensor_data()
 
-        self._steering_enabled = True
-
-    def around_in_place(self):
-        """
-        turn around using 2 in place turns
-        """
-        self.left_in_place()
-        self.left_in_place()
+    def around(self):
+        self.left()
+        self.left()
 
     def get_sensors(self) -> dict:
         """
@@ -224,28 +194,20 @@ class Mouse:
 
         self.rot_error = ang_error - pos_error
 
-    def _calc_dist(self) -> float:
-        """
-        calculate distance between data updates
-        :return: reached distance
-        """
-        return math.sqrt((self.prev_y - self.offset_y) ** 2 + (self.prev_x - self.offset_x) ** 2)
-
-    def _update_movement(self):
+    def _update_movement(self, left_enc: int, right_enc: int):
         """
         update movement related data i.e. position, angle, speed
         """
-        diff = self._calc_dist()
+        diff = (left_enc * constants.LEFT_ENCODER_TO_MM + right_enc * constants.LEFT_ENCODER_TO_MM) / 2
         self.speed = diff / 0.1
         self.pos += diff
-        self.prev_y = self.offset_y
-        self.prev_x = self.offset_x
 
     def update_sensor_data(self, init_update: bool = False):
         """
         read sensor data and update wall related data
         """
         sensor_data = self.get_sensors()
+        debug(str(sensor_data))
         if self._sim:
             self.left_wall_distance = sensor_data['left_side_distance']
             self.front_wall_distance = sensor_data['front_distance']
@@ -256,9 +218,12 @@ class Mouse:
             self.angle = sensor_data['rotation_yaw']
             if self.angle < 0:
                 self.angle += 360
+            left_enc_diff = 0
+            right_enc_diff = 0
         else:
             lasers = sensor_data["laser"]
             self.front_wall_distance = lasers[Sensors.up]
+            # TODO change sensors for P controller
             self.left_wall_distance = lasers[Sensors.left]
             self.right_wall_distance = lasers[Sensors.right]
             self.left_wall = self.left_wall_distance < constants.WALL_THRESHOLD
@@ -282,16 +247,22 @@ class Mouse:
             diff = angle - self.prev_angle
             self.prev_angle = angle
             self.angle += diff
-        # self._update_movement()
-        #
-        # self._calc_errors()
+
+            encoders = sensor_data['encoders']
+            left_enc_diff = encoders['left_encoder_delta_sum']
+            right_enc_diff = encoders['right_encoder_delta_sum']
+
+        self._update_movement(left_enc=left_enc_diff, right_enc=right_enc_diff)
+        self._calc_errors()
+        debug(str(self))
 
     def __str__(self):
         return (
             f"< {self.left_wall_distance} {self.left_wall} \n"
             f"^ {self.front_wall_distance} {self.front_wall} \n"
             f"> {self.right_wall_distance} {self.right_wall} \n"
-            f"angle: {self.angle} ({self.reference_angle})\n"
+            f"pos: {self.pos} \n"
+            f"angle: {self.angle} ({self.reference_angle}) \n"
             f"error: {self.rot_error}"
         )
 
