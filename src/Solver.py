@@ -139,6 +139,31 @@ class Solver:
                         new_path.extend(output)
         return new_path
 
+    @staticmethod
+    def _glue_forward(src_path: list[str], add_f_slow: bool = True) -> list[str]:
+        res_path = []
+        forward_counter = 0
+        for action in src_path:
+            if action == 'F':
+                forward_counter += 1
+            elif forward_counter != 0:
+                if not add_f_slow:
+                    res_path.append(f'F_{forward_counter}')
+                else:
+                    forward_counter -= 1
+                    res_path.append(f'F_{forward_counter}')
+                    res_path.append(f'F_S')
+
+                res_path.append(action)
+                forward_counter = 0
+            else:
+                res_path.append(action)
+
+        if forward_counter != 0:
+            res_path.append(f'F_{forward_counter}')
+
+        return res_path
+
     def _blind_run(self, diag_path: list[str]):
         if constants.DEBUG_LOGGING:
             print(diag_path)
@@ -159,6 +184,11 @@ class Solver:
                 self.mouse.left()
             elif next_path == "L_45":
                 self.mouse.left(constants.TURN_45)
+            elif next_path == "F_S":
+                self.mouse.forward(is_slow=True)
+            elif "F_" in next_path:
+                numb_of_cells = int(next_path[2:])
+                self.mouse.forward(constants.CELL*numb_of_cells)
 
         self._scan_position()
 
