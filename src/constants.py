@@ -9,23 +9,29 @@ class Directions(IntEnum):
     left = 3
 
 
-MOUSE_ID = "7536AF1646774A53"
-MOUSE_IP = "http://192.168.11.220"
+MOUSE_ID = "F549AF1617446453"
+MOUSE_IP = "http://192.168.97.231"
 DEBUG_LOGGING = True
 
 # Mouse related
 SENSING_OFFSET = 40
 ROTATION_SPEED = 80
-FORWARD_SPEED = 80
+FORWARD_SPEED = 60
+FORWARD_OFFSET = 3
 FRONT_REFERENCE = 70
-ANGLE_OFFSET = 0
+ANGLE_OFFSET = 5
 KP_ROT = 4.0
 KP_STEERING = 0.4
 MAX_SPEED = 200
 PRE_TURN_SPEED = 100
 
-LEFT_ENCODER_TO_MM = 0.1
-RIGHT_ENCODER_TO_MM = 0.1
+WHEEL_D = 22
+MOTOR_CARGO = 13
+WHEEL_CARGO = 20
+PULSES_PER_TURN = 330
+
+ENCODER_TO_MM = (math.pi * WHEEL_D * MOTOR_CARGO) / (PULSES_PER_TURN * WHEEL_CARGO)
+print(ENCODER_TO_MM)
 
 LEFT_REFERENCE = 59
 RIGHT_REFERENCE = 49
@@ -42,7 +48,7 @@ TURN_45 = 45
 CELL = 180
 HALF_CELL = CELL / 2
 DIAG_CELL = int(math.sqrt(HALF_CELL**2 + HALF_CELL**2))
-TO_CENTER = HALF_CELL - 50
+TO_CENTER = 45
 
 # all wall related information is stored in one uint8_t array, first 4 bits to mark walls visited (1 bit for 1 wall)
 # last 4 bits for actual wall data (1 bit for 1 wall)

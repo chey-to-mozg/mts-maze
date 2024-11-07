@@ -41,9 +41,17 @@ class Mouse:
         self.rot_error = 0
         self._steering_enabled = False
 
-        self.backward()
+        self.backward(70)
+        self.prev_angle = 0
         self.update_sensor_data(init_update=True)
         self.forward(constants.TO_CENTER)
+
+    def _clip(self, num: int):
+        if num < -250:
+            num = -250
+        if num > 250:
+            num = 250
+        return num
 
     def _move_motors(self, pwm_left: int | float, pwm_right: int | float, m_time: int = 50):
         """
@@ -52,8 +60,8 @@ class Mouse:
         :param pwm_right: value for right motor
         :param m_time:    execution time
         """
-        pwm_left = int(pwm_left)
-        pwm_right = int(pwm_right)
+        pwm_left = self._clip(int(pwm_left))
+        pwm_right = self._clip(int(pwm_right))
         body = {
             'id': constants.MOUSE_ID,
             'l': pwm_left,
@@ -61,11 +69,11 @@ class Mouse:
             'l_time': m_time,
             'r_time': m_time,
         }
-        requests.put(f"{self._api_route}/motor", json=body)
+        requests.put(f"{self._api_route}/motor", json=body, timeout=0.05)
         # TODO check request duration and calculate actual delay
-        # time.sleep(m_time)
+        # time.sleep(m_time/1000)
 
-    def _move(self, distance: int, stop_threshold: float):
+    def _move(self, distance: int, stop_threshold: float, m_time: int):
         """
         go forward until dist reached
         :param distance: distance to go
@@ -75,14 +83,19 @@ class Mouse:
         self.update_sensor_data()
         debug(f'forward {self.pos} -> {distance}')
         while self.pos < distance:
-            pwm_left = pwm + self.rot_error
-            pwm_right = pwm - self.rot_error
-            debug(f'{pwm_left} {pwm_right}')
-            self._move_motors(pwm_left, pwm_right)
+            pwm_left = pwm + constants.FORWARD_OFFSET + self.rot_error
+            pwm_right = pwm - constants.FORWARD_OFFSET - self.rot_error
+            debug(f'{pwm_left} {pwm_right} pos: {self.pos}')
+            self._move_motors(pwm_left, pwm_right, m_time)
             self.update_sensor_data()
             # TODO add front wall check
 
-    def forward(self, distance: int = constants.CELL, stop_threshold: float = constants.PRE_TURN_THRESHOLD):
+    def forward(
+            self,
+            distance: int = constants.CELL,
+            stop_threshold: float = constants.PRE_TURN_THRESHOLD,
+            m_time: int = 50
+    ):
         """
         Move requested dist
         :param distance: distance to go
@@ -90,11 +103,11 @@ class Mouse:
         :return:
         """
         self.pos = 0
-        self._move(distance, stop_threshold)
+        self._move(distance, stop_threshold, m_time)
 
     def backward(self, distance: int = 100):
         self.pos = 0
-        pwm = constants.FORWARD_SPEED
+        pwm = 100
         while abs(self.pos) < distance:  # check encoders sign!
             self._move_motors(-pwm, -pwm)
             self.update_sensor_data()
@@ -130,7 +143,6 @@ class Mouse:
         while self.angle < self.reference_angle - constants.ANGLE_OFFSET:
             angle_diff = self.reference_angle - self.angle
             speed = constants.ROTATION_SPEED + angle_diff
-            debug(speed)
             self._move_motors(speed, -speed)
             self.update_sensor_data()
 
@@ -144,7 +156,6 @@ class Mouse:
         while self.angle > self.reference_angle + constants.ANGLE_OFFSET:
             angle_diff = self.angle - self.reference_angle
             speed = constants.ROTATION_SPEED + angle_diff
-            debug(speed)
             self._move_motors(-speed, speed)
             self.update_sensor_data()
 
@@ -198,7 +209,7 @@ class Mouse:
         """
         update movement related data i.e. position, angle, speed
         """
-        diff = (left_enc * constants.LEFT_ENCODER_TO_MM + right_enc * constants.LEFT_ENCODER_TO_MM) / 2
+        diff = (left_enc * constants.ENCODER_TO_MM + right_enc * constants.ENCODER_TO_MM) / 2
         self.speed = diff / 0.1
         self.pos += diff
 
@@ -207,7 +218,6 @@ class Mouse:
         read sensor data and update wall related data
         """
         sensor_data = self.get_sensors()
-        debug(str(sensor_data))
         if self._sim:
             self.left_wall_distance = sensor_data['left_side_distance']
             self.front_wall_distance = sensor_data['front_distance']
@@ -231,21 +241,23 @@ class Mouse:
             self.right_wall = self.right_wall_distance < constants.WALL_THRESHOLD
 
             imu = sensor_data['imu']
-            angle = imu["yaw"] - self.angle_error
+            cur_angle = (imu["yaw"] - self.angle_error) % 360
 
             if init_update:
-                self.angle_error = angle
+                self.angle_error = cur_angle
                 self.angle = 0
+                cur_angle = 0
 
-            if angle <= 90:
+            if cur_angle <= 90:
                 if self.prev_angle >= 270:
                     self.prev_angle -= 360
-            if angle >= 270:
+            if cur_angle >= 270:
                 if self.prev_angle <= 90:
                     self.prev_angle += 360
 
-            diff = angle - self.prev_angle
-            self.prev_angle = angle
+            print(self.prev_angle, cur_angle, self.angle)
+            diff = cur_angle - self.prev_angle
+            self.prev_angle = cur_angle
             self.angle += diff
 
             encoders = sensor_data['encoders']
@@ -254,7 +266,7 @@ class Mouse:
 
         self._update_movement(left_enc=left_enc_diff, right_enc=right_enc_diff)
         self._calc_errors()
-        debug(str(self))
+        # debug(str(self))
 
     def __str__(self):
         return (
@@ -271,27 +283,28 @@ def print_sensor_data():
     mouse = Mouse()
     while True:
         mouse.update_sensor_data()
-        print(mouse)
+        # print(mouse)
         time.sleep(0.1)
 
 
 def check_response_time():
     mouse = Mouse()
 
-    mouse.update_sensor_data()
-    print(mouse)
-    mouse.right()
-    mouse.update_sensor_data()
-    print(mouse)
-    mouse.forward()
-    mouse.update_sensor_data()
-    print(mouse)
-    mouse.forward()
-    mouse.update_sensor_data()
-    print(mouse)
+    # mouse.update_sensor_data()
+    # print(mouse)
+    # mouse.right()
+    # mouse.update_sensor_data()
+    # print(mouse)
+    mouse.forward(constants.CELL, m_time=50)
+    # mouse.update_sensor_data()
+    # print(mouse)
+    # mouse.forward()
+    # mouse.update_sensor_data()
+    # print(mouse)
     mouse.left()
-    mouse.update_sensor_data()
-    print(mouse)
+    mouse.forward(constants.CELL, m_time=50)
+    # mouse.update_sensor_data()
+    # print(mouse)
 
 
 def check_turns():
@@ -300,32 +313,22 @@ def check_turns():
     mouse.update_sensor_data()
     print(mouse)
     mouse.right()
-    angle = mouse.angle
-    mouse.update_sensor_data()
-    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.angle - angle}')
+    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.reference_angle - mouse.angle}')
     mouse.right()
-    angle = mouse.angle
     mouse.update_sensor_data()
-    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.angle - angle}')
+    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.reference_angle - mouse.angle}')
     mouse.left(angle=180)
-    angle = mouse.angle
     mouse.update_sensor_data()
-    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.angle - angle}')
+    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.reference_angle - mouse.angle}')
 
     mouse.update_sensor_data()
     print(mouse)
     mouse.left()
-    angle = mouse.angle
-    mouse.update_sensor_data()
-    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.angle - angle}')
+    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.reference_angle - mouse.angle}')
     mouse.left()
-    angle = mouse.angle
-    mouse.update_sensor_data()
-    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.angle - angle}')
+    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.reference_angle - mouse.angle}')
     mouse.right(angle=180)
-    angle = mouse.angle
-    mouse.update_sensor_data()
-    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.angle - angle}')
+    print(f'{mouse.reference_angle}, real={mouse.angle} diff={mouse.reference_angle - mouse.angle}')
 
 
 def check_45_turn():
@@ -385,7 +388,7 @@ def check_to_center_calibration():
 
 if __name__ == "__main__":
     # print_sensor_data()
-    # check_response_time()
+    check_response_time()
     # check_turns()
     # check_45_turn()
-    check_to_center_calibration()
+    # check_to_center_calibration()
